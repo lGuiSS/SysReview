@@ -2238,12 +2238,14 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
   // ─── render ───────────────────────────────────────────────────────────────
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 mb-6 transition-colors duration-200">
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
-        <ChartArea className="h-6 w-6 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
-        {t('stats.sectionTitle')}
-      </h2>
+      <div data-tour="section-statistics">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
+          <ChartArea className="h-6 w-6 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+          {t('stats.sectionTitle')}
+        </h2>
 
-      <TabNav />
+        <TabNav />
+      </div>
 
       {/* ═══ ABA BIBLIOMETRIA ════════════════════════════════════════════════ */}
       {activeTab === 'bibliometria' && (

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
 import { XCircle, CheckCircle, BookCopy, ListCollapse, Link  } from "lucide-react";
+import { SuggestionPanel } from "./SuggestionPanel.jsx";
 
 const ArticleModal = ({
   article,
@@ -16,6 +17,7 @@ const ArticleModal = ({
   setShowCriterionModal,
   optionExtraction,
   janelaRef,
+  assist = null,
 }) => {
   const { t } = useTranslation();
   const [visible,    setVisible]    = useState(false);
@@ -27,12 +29,13 @@ const ArticleModal = ({
 
   // ── Entrada ────────────────────────────────────────────────────────────────
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     // setTranslateY(0);
     const t = requestAnimationFrame(() => setVisible(true));
     return () => {
       cancelAnimationFrame(t);
-      document.body.style.overflow = '';
+      document.body.style.overflow = previousOverflow;
     };
   }, []);
 
@@ -211,6 +214,10 @@ const ArticleModal = ({
               {article.abstract}
             </p>
           </div>
+
+          {assist && currentFilter !== 'dataprocessing' && (
+            <SuggestionPanel {...assist} />
+          )}
         </div>
 
         {/* ── Footer ─────────────────────────────────────────────────────── */}

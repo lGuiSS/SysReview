@@ -1,7 +1,8 @@
 // fileSystem.js - Sistema de salvamento e abertura de arquivos
 
 // Versão atual do schema do arquivo
-const CURRENT_SCHEMA_VERSION = "1.2.0";
+const CURRENT_SCHEMA_VERSION = "1.3.0";
+export const APP_VERSION = CURRENT_SCHEMA_VERSION;
 
 // Schemas de versões para compatibilidade retroativa
 const SCHEMA_VERSIONS = {
@@ -16,6 +17,10 @@ const SCHEMA_VERSIONS = {
   "1.2.0": {
     requiredFields: ["version", "protocol", "articles", "statistics", "metadata"],
     migrations: [migrateFrom1_1_0to1_2_0]
+  },
+  "1.3.0": {
+    requiredFields: ["version", "protocol", "articles", "statistics", "metadata"],
+    migrations: [migrateFrom1_2_0to1_3_0]
   }
 };
 // Remove exclusionReason dos artigos, movendo seu valor para exclusionCriterion
@@ -105,6 +110,24 @@ function migrateFrom1_1_0to1_2_0(data) {
     articles: newArticles,
   };
 }
+// Adiciona os campos da triagem assistida (sugestões por filtro e origem da decisão)
+function migrateFrom1_2_0to1_3_0(data) {
+  const { articles = [], protocol = {} } = data;
+  return {
+    ...data,
+    version: "1.3.0",
+    protocol: {
+      ...protocol,
+      aiConfig: protocol.aiConfig ?? null,
+    },
+    articles: articles.map(article => ({
+      ...article,
+      aiSuggestions: article.aiSuggestions ?? {},
+      decisionSource: article.decisionSource ?? {},
+      fullText: article.fullText ?? null,
+    })),
+  };
+}
 // Função para criar o estado padrão
 const createDefaultState = () => ({
   protocol: {
@@ -115,7 +138,8 @@ const createDefaultState = () => ({
     inclusionCriteria: [''],
     exclusionCriteria: [''],
     qualityCriteria: [''],
-    databases: []
+    databases: [],
+    aiConfig: null
   },
   articles: [],
   statistics: {},

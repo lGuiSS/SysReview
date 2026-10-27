@@ -20,6 +20,7 @@
     "unsavedCheckbox": "Auto-save to this file"
   },
   "nav": {
+    "about": "About",
     "protocol": "Protocol",
     "import": "Import",
     "dataprocessing": "Processing",
@@ -43,7 +44,8 @@
     "dark": "dark",
     "notification": "Configure save reminder",
     "support": "Support the project",
-    "language": "Language: {{lang}}"
+    "language": "Language: {{lang}}",
+    "guide": "Getting started guide"
   },
   "lang": {
     "pt": "Português",
@@ -436,5 +438,280 @@
     "networkHelpEdgeText": "An edge connects two nodes that appear together in at least one article. The thickness is proportional to the weight of the relationship: in the full counting method, the weight is the number of articles in which the pair appears together; in the fractional counting method, it is the sum of the fractional weights calculated for each article.",
     "networkHelpCountingTitle": "Fractional × full counting",
     "networkHelpCountingText": "In the full counting method, each pair of nodes from the same article is assigned a weight of 1. Consequently, articles with many authors or keywords can inflate the number of connections. In the fractional counting method, each article contributes a total weight of 1, divided equally among all pairs (1 divided by the number of pairs), thereby avoiding this bias. The fractional method is the recommended one (Perianes-Rodriguez, Waltman & van Eck, 2016)."
+  },
+  "assist": {
+    "relevanceTitle": "Suggestion score: inclusion probability × (1 − highest exclusion probability). Sort to review the most relevant first.",
+    "colRelevance": "Relevance",
+    "applyBodyInclusive": "Inclusive filter: articles with at least {{includeAt}}% inclusion probability (and no likely exclusion criterion) will be included, and those with at least {{excludeAt}}% exclusion probability will be excluded. The others stay pending for manual review.",
+    "probability": "Probability: {{value}}%",
+    "rulesHint": "Filter 1 is inclusive: inclusion only requires some evidence of the inclusion criteria and no exclusion criterion at 50% probability or more. In Filters 2 and 3, all criteria must reach the given value.",
+    "ruleApply": "Filter {{n}} · apply if the probability is",
+    "ruleF1Exclude": "Filter 1 · exclude if the probability of any exclusion criterion is",
+    "ruleF1Include": "Filter 1 · include if the probability of meeting the inclusion criteria is",
+    "rulesTitle": "Rules for applying suggestions in batch",
+    "headerButton": "AI-assisted selection",
+    "settingsTitle": "AI-assisted selection",
+    "intro": "Generates inclusion and exclusion suggestions from the protocol criteria, using the Jev model (TypeSafe). No decision is applied without your confirmation.",
+    "apiKey": "API key (TypeSafe)",
+    "apiKeyPlaceholder": "Paste your key here",
+    "apiKeyHint": "Stored only in this browser and never included in the project file.",
+    "getKey": "Get a key",
+    "removeKey": "Remove key",
+    "model": "Model",
+    "baseUrl": "API address (optional)",
+    "baseUrlHint": "Leave blank to use the default. Provide a proxy if the browser blocks direct access.",
+    "concurrency": "Concurrent requests",
+    "longContext": "Allow long texts (slower)",
+    "minQuality": "Minimum average quality score to suggest inclusion (Filter 3)",
+    "minQualityLevels": "0 = not met · 1 = partially met · 2 = fully met",
+    "test": "Test connection",
+    "testing": "Testing...",
+    "testOk": "Connection established ({{model}}).",
+    "usage": "Usage in this project: {{tokens}} input tokens (~US$ {{cost}})",
+    "save": "Save",
+    "cancel": "Cancel",
+    "errorNetwork": "Could not reach the API. Check your connection or provide a proxy in the API address.",
+    "errorAuth": "Invalid API key or missing permission.",
+    "errorRateLimit": "Rate limit reached. Try again in a moment.",
+    "errorApi": "API error: {{error}}",
+    "errorNoKey": "Set the API key in AI-assisted selection.",
+    "evaluatePending": "Evaluate pending",
+    "evaluatePendingTitle": "Generate suggestions for the pending articles in this filter",
+    "applySuggestions": "Apply suggestions",
+    "applySuggestionsTitle": "Apply the suggestions whose confidence is above the configured limit",
+    "suggestInclude": "Suggestion: include",
+    "suggestExclude": "Suggestion: exclude",
+    "suggestUncertain": "Suggestion: manual review",
+    "needsText": "Full text needed for a suggestion",
+    "stale": "Outdated suggestion (criteria or text changed)",
+    "filterSuggestInclude": "Suggestion: include",
+    "filterSuggestExclude": "Suggestion: exclude",
+    "filterSuggestUncertain": "Suggestion: manual review",
+    "filterNoSuggestion": "No suggestion",
+    "batchTitle": "Evaluate pending · {{section}}",
+    "batchPending": "{{count}} pending articles in this filter.",
+    "batchToSend": "{{count}} will be evaluated.",
+    "batchAlready": "{{count}} already have a valid suggestion.",
+    "batchReevaluate": "Also re-evaluate those that already have a suggestion",
+    "batchNeedsText": "{{count}} without enough text (will not be sent).",
+    "batchEstimate": "Estimate: {{min}} to {{max}} input tokens (~US$ {{costMin}} to US$ {{costMax}}).",
+    "batchStart": "Start",
+    "batchStop": "Stop",
+    "batchClose": "Close",
+    "batchProgress": "{{done}} of {{total}} evaluated",
+    "batchErrors": "{{count}} failed",
+    "batchDone": "Evaluation finished.",
+    "batchStopped": "Evaluation stopped.",
+    "batchResultInclude": "Include",
+    "batchResultExclude": "Exclude",
+    "batchResultUncertain": "Manual review",
+    "batchResultNeedsText": "No text",
+    "batchUsage": "Usage for this evaluation: {{tokens}} input tokens in {{requests}} requests (~US$ {{cost}}).",
+    "batchUsageUnavailable": "{{requests}} requests made; the API did not report token usage.",
+    "batchUsageProject": "Total accumulated in this project: {{tokens}} tokens (~US$ {{cost}}).",
+    "batchNothing": "There are no articles to evaluate.",
+    "applyTitle": "Apply suggestions · {{section}}",
+    "applyBody": "Only suggestions with at least {{applyAt}}% probability on still-pending articles will be applied. The others stay pending for manual review.",
+    "applyInclude": "{{count}} will be included",
+    "applyExclude": "{{count}} will be excluded",
+    "applyRemaining": "{{count}} stay pending",
+    "applyConfirm": "Apply",
+    "applied": "{{count}} decisions applied.",
+    "applyNothing": "No suggestion reaches the configured minimum confidence.",
+    "suggestionTitle": "Suggestion",
+    "accept": "Accept suggestion",
+    "evaluate": "Generate suggestion",
+    "reevaluate": "Re-evaluate",
+    "evaluating": "Evaluating...",
+    "basedOn": "Based on: {{fields}}",
+    "evaluatedAt": "Evaluated on {{date}} · {{model}}",
+    "inclusionHeading": "Inclusion criteria",
+    "exclusionHeading": "Exclusion criteria",
+    "qualityHeading": "Quality criteria",
+    "qualityLevel0": "Not met",
+    "qualityLevel1": "Partially met",
+    "qualityLevel2": "Fully met",
+    "field": {
+      "title": "title",
+      "keywords": "keywords",
+      "abstract": "abstract",
+      "introduction": "introduction",
+      "conclusion": "conclusion",
+      "sections": "full text"
+    }
+  },
+  "about": {
+    "sectionTitle": "About",
+    "version": "SysReview · version {{version}}",
+    "whatTitle": "What is SysReview",
+    "whatText": "A free tool that runs entirely in the browser for conducting systematic literature reviews following the PRISMA methodology, from protocol definition to bibliometric analysis and export of the results.",
+    "features": [
+      "Protocol with research question, keywords and inclusion, exclusion, quality and extraction criteria",
+      "BibTeX (Scopus, Web of Science, ScienceDirect) and MEDLINE (PubMed) import with duplicate detection",
+      "Automatic keyword scoring with configurable weights",
+      "Three sequential filters recording the criteria behind each decision",
+      "PRISMA diagram, statistics and bibliometric networks",
+      "Export of the project (.srp) and the data (.xlsx)"
+    ],
+    "workflowTitle": "Workflow",
+    "workflow": [
+      "Protocol: define the research question, keywords and criteria.",
+      "Import: load the database files and enter the search string used.",
+      "Processing: confirm duplicates and select the articles that move on to the filters.",
+      "Filter 1: screening by title, keywords and abstract.",
+      "Filter 2: reading of the introduction and conclusion.",
+      "Filter 3: full-text reading, quality assessment and data extraction.",
+      "Statistics: PRISMA diagram, charts, networks and export."
+    ],
+    "assistTitle": "AI-assisted selection",
+    "assistText": "Optional feature that suggests including or excluding each article based on the protocol criteria, using the Jev model (TypeSafe). Each criterion becomes an independent question, and the model returns the probability that the article meets it.",
+    "assistStages": [
+      "Filter 1: title, keywords and abstract.",
+      "Filter 2: additionally, the introduction and conclusion of the full text.",
+      "Filter 3: full text, including assessment of the quality criteria."
+    ],
+    "assistDecision": "In Filter 1, which is inclusive, an article is suggested for inclusion when there is evidence that it meets the inclusion criteria and no exclusion criterion is likely, and for exclusion when some exclusion criterion is likely; batch exclusion requires a high probability (95% by default). In Filters 2 and 3, inclusion requires all criteria to be met. The remaining articles are left for manual review and can be sorted by relevance. No decision is applied without your confirmation, and the origin of each decision (manual, accepted suggestion or applied in batch) is recorded in the export.",
+    "assistCost": "Using it requires your own TypeSafe API key. The estimated cost is shown before each batch evaluation.",
+    "privacyTitle": "Privacy and data",
+    "privacy": [
+      "All processing happens in your browser; there is no SysReview server.",
+      "The project is kept in the browser's local storage and in the .srp file you save.",
+      "With AI-assisted selection enabled, only the texts needed for each article (title, keywords, abstract and, in Filters 2 and 3, the full text) and the criteria are sent to the TypeSafe API.",
+      "The API key stays only in this browser and is never written to the project file."
+    ],
+    "authorTitle": "Author",
+    "authorLocation": "São Carlos, SP, Brazil",
+    "authorBio": "PhD candidate in Civil Engineering (Structures and Geotechnics) at the Federal University of São Carlos (UFSCar), Brazil, with a CAPES scholarship. Civil engineer from IFSP (2022) and IT technician from ETEC (2017). Has completed and ongoing research on timber structures and the numerical simulation of cross-laminated timber (CLT) in ABAQUS, including the implementation of coupled damage-plasticity subroutines (UMAT/VUMAT). Also develops regression models using genetic programming and artificial neural networks (Python), as well as software applied to Civil Engineering (HTML, CSS, JavaScript, Python).",
+    "lattes": "Lattes CV",
+    "techTitle": "Technologies",
+    "techText": "React, Vite, Tailwind CSS, Recharts, ExcelJS, Graphology (Louvain), vis-network, react-i18next and Lucide."
+  },
+  "tour": {
+    "progress": "{{current}} of {{total}}",
+    "gotIt": "Got it",
+    "next": "Next",
+    "previous": "Back",
+    "done": "Finish",
+    "lockedHint": "Available after you import articles.",
+    "steps": {
+      "welcome": {
+        "title": "Welcome to SysReview",
+        "body": "This tour walks you through each part of the app for running a systematic review following PRISMA. Use the arrow keys to navigate or Esc to leave at any time."
+      },
+      "fileMenu": {
+        "title": "File",
+        "body": "Your work lives in a project file (.srp). Here you create, open and save projects and export the data to Excel. Below the title you can see whether there are unsaved changes."
+      },
+      "reminder": {
+        "title": "Save reminder",
+        "body": "Set how often the app reminds you to save the project."
+      },
+      "assist": {
+        "title": "AI-assisted selection (optional)",
+        "body": "Suggests inclusions and exclusions from the protocol criteria using the Jev model. It requires your own API key, and no decision is applied without your confirmation."
+      },
+      "language": {
+        "title": "Language",
+        "body": "Switches the interface between Portuguese and English."
+      },
+      "support": {
+        "title": "Support the project",
+        "body": "SysReview is free and maintained on a non-profit basis. Here you can find how to contribute with a donation."
+      },
+      "theme": {
+        "title": "Theme",
+        "body": "Switches between the light and dark themes."
+      },
+      "guide": {
+        "title": "Getting started guide",
+        "body": "This button shows or hides the progress checklist, where you can also restart this tour."
+      },
+      "nav": {
+        "title": "Review sections",
+        "body": "Sections follow the order of the work: Protocol, Import, Processing, Filters 1 to 3, Statistics and About."
+      },
+      "overview": {
+        "title": "Progress panel",
+        "body": "Summarizes your progress: protocol status, imported articles and articles included at each stage."
+      },
+      "protocolBasic": {
+        "title": "Protocol: basic information",
+        "body": "Start with the title, the research question, the publication period and the accepted languages."
+      },
+      "protocolDatabases": {
+        "title": "Protocol: databases",
+        "body": "Select the databases you searched. Only the selected databases appear in Import."
+      },
+      "protocolCriteria": {
+        "title": "Protocol: criteria",
+        "body": "Define the inclusion and exclusion criteria. They justify each decision in the filters. The quality and extraction criteria, used in Filter 3, are right below."
+      },
+      "protocolScoring": {
+        "title": "Protocol: keywords and score",
+        "body": "Each article gets a relevance score based on the keywords found in its title, abstract and keywords, with weights you can adjust."
+      },
+      "import": {
+        "title": "Import",
+        "body": "Load the files exported from the databases (BibTeX or PubMed MEDLINE .txt) and enter the search string you used; it is recorded to document the methodology."
+      },
+      "dataprocessing": {
+        "title": "Processing",
+        "body": "Duplicates are flagged automatically. Here you exclude articles with a score of 0 and accept pending ones so they move on to Filter 1."
+      },
+      "filter1": {
+        "title": "Filter 1: title, keywords and abstract",
+        "body": "Each article has action buttons to record your decision. Next, see each one. When in doubt, include: the next filters narrow the selection."
+      },
+      "action_include": {
+        "title": "Include",
+        "body": "Keeps the article in the review. In the filters, you pick the inclusion criterion behind the decision."
+      },
+      "action_exclude": {
+        "title": "Exclude",
+        "body": "Removes the article at this stage. You pick the exclusion criterion behind the decision."
+      },
+      "action_duplicate": {
+        "title": "Duplicate",
+        "body": "Marks the article as a duplicate of another one already listed. It no longer moves on to the next stages."
+      },
+      "action_details": {
+        "title": "Details",
+        "body": "Opens the article with its abstract, keywords and other data. You can move between articles with Previous and Next."
+      },
+      "filter2": {
+        "title": "Filter 2: introduction and conclusion",
+        "body": "Receives the articles included in Filter 1. Read the introduction and conclusion of each article (in the PDF or on the journal website) and use the same action buttons to confirm whether it stays in."
+      },
+      "filter3": {
+        "title": "Filter 3: full text",
+        "body": "Read the full text and make the final inclusion decision with the action buttons. In the article details (eye), assess quality and fill in the extraction criteria."
+      },
+      "statistics": {
+        "title": "Statistics",
+        "body": "The tabs bring together the PRISMA flow diagram, charts by year, country and venue, the criteria overview and bibliometric networks, all exportable."
+      },
+      "checklist": {
+        "title": "Your first steps",
+        "body": "This checklist tracks your project progress and takes you to the next step. You can collapse it, close it or restart the tour from here."
+      }
+    }
+  },
+  "checklist": {
+    "title": "Getting started",
+    "expand": "Expand getting started",
+    "collapse": "Collapse",
+    "close": "Close (reopen with the graduation cap button in the header)",
+    "goTo": "Go to section",
+    "startTour": "Take the guided tour",
+    "allDone": "All set! Your review has gone through every stage.",
+    "items": {
+      "protocol": "Define the protocol",
+      "import": "Import the articles",
+      "dataprocessing": "Finish processing",
+      "filter1": "Finish Filter 1",
+      "filter2": "Finish Filter 2",
+      "filter3": "Finish Filter 3",
+      "save": "Save the project"
+    }
   }
 }

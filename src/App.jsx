@@ -1,17 +1,28 @@
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Filter, ChartArea, Download, Table, Upload, CheckCircle, Check, XCircle, BookCopy, List, Clock, BarChart3, FileText, Database, RefreshCw, Settings, Sun, Moon, Bell, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Eye, PlusCircle, X, CopyX, CopyCheck, HeartHandshake, Languages, Save } from 'lucide-react';
+import { Search, Filter, ChartArea, Download, Table, Upload, CheckCircle, Check, XCircle, BookCopy, List, Clock, BarChart3, FileText, Database, RefreshCw, Settings, Sun, Moon, Bell, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Eye, PlusCircle, X, CopyX, CopyCheck, HeartHandshake, Languages, Save, ListChecks, Info, GraduationCap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SvgIcon } from './icons/SysReviewIcon.jsx';
 
 import ArticleModal from "./components/ArticleModal.jsx"
 
 import StatisticsSection from "./components/StatisticsSection.jsx"
+import AboutSection from "./components/AboutSection.jsx"
 import { UnsavedWarningModal } from "./components/UnsavedWarningModal.jsx";
 import { ReminderSettingsModal } from "./components/ReminderSettingsModal.jsx";
 import { SupportModal } from "./components/SupportModal.jsx";
+import { OnboardingChecklist } from "./components/OnboardingChecklist.jsx";
+import { buildChecklistItems } from "./tour/checklistItems.js";
+import { useGuidedTour } from "./tour/useGuidedTour.js";
+import { hasSeenTour, isChecklistHidden, setChecklistHidden } from "./tutorialStorage.js";
 import { SupportRequestModal } from "./components/SupportRequestModal.jsx";
 import { AlertModal } from "./components/AlertModal.jsx";
 import { AutoSaveOfferModal } from "./components/AutoSaveOfferModal.jsx";
+import { JevSettingsModal } from "./components/JevSettingsModal.jsx";
+import { JevBatchModal, JevApplyModal } from "./components/JevBatchModal.jsx";
+import { SuggestionBadge } from "./components/SuggestionPanel.jsx";
+import { jevErrorMessage, suggestionTooltip } from "./ai/messages.js";
+import { loadJevSettings, saveJevSettings } from "./ai/jevClient.js";
+import { STAGES, evaluateArticle, getAiConfig, isAutoApplicable, isSuggestionStale, relevanceOf, suggestionProbability, autoRuleSummary, withCurrentRules } from "./ai/screening.js";
 
 import {
   saveProjectToFile,
@@ -57,6 +68,7 @@ const ThemeToggle = ({ theme, toggleTheme }) => {
   return (
     <button
       onClick={toggleTheme}
+      data-tour="theme"
       className="p-2 rounded-lg flex items-center justify-center transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
       title={t('header.themeToggle', { next: theme === 'light' ? t('header.dark') : t('header.light') })}
     >
@@ -73,6 +85,7 @@ const LanguageSelector = () => {
   const { i18n } = useTranslation();
   return (
     <button
+      data-tour="language"
       onClick={() => i18n.changeLanguage(i18n.language === 'pt' ? 'en' : 'pt')}
       className="px-2 py-2 rounded-lg flex items-center justify-center transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
       title={i18n.language === 'pt' ? 'English' : 'Português'}
@@ -278,6 +291,9 @@ const importedBibtexArticles = (bibtexContent, source = 'Scopus', numString = 1,
       exclusionCriterion: [],
       qualityCriteria: [],
       extractionCriteria: [],
+      aiSuggestions: {},
+      decisionSource: {},
+      fullText: null,
       searchString: null,
       importDate: new Date(),
       lastModified: new Date()
@@ -365,6 +381,9 @@ const importedPubmedArticles = (pubmedContent, source = 'PubMed', numString = 1,
       exclusionCriterion: [],
       qualityCriteria: [],
       extractionCriteria: [],
+      aiSuggestions: {},
+      decisionSource: {},
+      fullText: null,
       searchString: null,
       importDate: new Date(),
       lastModified: new Date()
@@ -485,7 +504,7 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
   const inputRef = useRef(null);
   const [resultsExtraction, setResultsExtraction] = useState([]);
   const filteredOptions = options.filter(opt =>
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    `${opt.id} - ${opt.label}`.toLowerCase().includes(searchTerm.toLowerCase()) &&
     !selected.find(s => s.id === opt.id)
   );
 
@@ -616,7 +635,7 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
                         'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
                       }`}
                   >
-                    {item.label}
+                    {item.id} - {item.label}
                     <button
                       onClick={(e) => { e.stopPropagation(); removeOption(item.id); }}
                       className="hover:bg-black hover:bg-opacity-10 rounded-full p-0.5 transition-colors touch-manipulation"
@@ -682,7 +701,7 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
                               : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                               }`}
                           >
-                            <span className="text-sm font-medium text-gray-900 dark:text-white">{option.label}</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{option.id} - {option.label}</span>
                             {isSelected && <Check size={16} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />}
                           </div>
                         </div>
@@ -767,7 +786,7 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
                 className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
               >
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  {criterion.value}
+                  {criterion.id} - {criterion.value}
                 </label>
 
                 {criterion.type === 'text' && (
@@ -983,7 +1002,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Informações básicas */}
-        <div className="space-y-6">
+        <div className="space-y-6" data-tour="protocol-basic">
           <div>
             <div className="space-y-4">
               <div>
@@ -1072,7 +1091,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                 </div>
               </div>
 
-              <div>
+              <div data-tour="protocol-databases">
                 <h3 className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
                   {t('protocol.databases')}
                 </h3>
@@ -1107,6 +1126,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
 
         {/* Critérios */}
         <div className="space-y-3">
+          <div className="space-y-3" data-tour="protocol-criteria">
           <div>
             <h3 className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('protocol.inclusionCriteria')}</h3>
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -1197,6 +1217,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                 </button>
               </div>
             </div>
+          </div>
           </div>
           <div>
             <h3 className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('protocol.qualityCriteria')}</h3>
@@ -1461,7 +1482,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
 
 
       {/* Coluna direita — Scoring */}
-      <div className="mt-8">
+      <div className="mt-8" data-tour="protocol-scoring">
         <ScoringSystemConfig
           scoringSystem={protocol.scoringSystem}
           onUpdate={onUpdateProtocol}
@@ -1470,32 +1491,6 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
           removeCriteria={removeCriteria}
           handleCriteriaChange={handleCriteriaChange}
         />
-      </div>
-
-      <div className="mt-8 p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg transition-colors duration-200">
-        <h4 className="font-semibold text-indigo-800 dark:text-indigo-300 mb-2">{t('protocol.status')}</h4>
-        <p className="text-sm text-indigo-700 dark:text-indigo-400">
-          {protocol.title ? `✓ ${t('protocol.statusTitleDefined')}` : `⚠ ${t('protocol.statusTitlePending')}`} |
-          {protocol.researchQuestion ? ` ✓ ${t('protocol.statusQuestionDefined')}` : ` ⚠ ${t('protocol.statusQuestionPending')}`} |
-          {protocol.keywords.some(c => c.trim()) ? ` ✓ ${t('protocol.statusKeywordsDefined')}` : ` ⚠ ${t('protocol.statusKeywordsPending')}`} |
-          {protocol.inclusionCriteria.length > 1 ? ` ✓ ${t('protocol.statusInclusionDefined')}` : ` ⚠ ${t('protocol.statusInclusionPending')}`} |
-          {protocol.exclusionCriteria.length > 1 ? ` ✓ ${t('protocol.statusExclusionDefined')}` : ` ⚠ ${t('protocol.statusExclusionPending')}`} |
-          {protocol.extractionCriteria.length > 1 ? ` ✓ ${t('protocol.statusExtractionDefined')}` : ` ⚠ ${t('protocol.statusExtractionPending')}`} |
-          {protocol.qualityCriteria.length > 1 ? ` ✓ ${t('protocol.statusQualityDefined')}` : ` ⚠ ${t('protocol.statusQualityPending')}`} |
-          {protocol.databases.length > 0 ? ` ✓ ${t('protocol.statusDatabasesDefined')}` : ` ⚠ ${t('protocol.statusDatabasesPending')}`}
-
-
-          {/* title: '',
-    researchQuestion: '',
-    yearRange: { start: 2015, end: new Date().getFullYear() },
-    languages: ['English'],
-    keywords: [''],
-    inclusionCriteria: [''],
-    exclusionCriteria: [''],
-    extractionCriteria: [{value:'', type:'text', items: ['']}],
-    qualityCriteria: [''],
-    databases: [], */}
-        </p>
       </div>
     </div>
   );
@@ -1924,14 +1919,14 @@ const ImportSection = ({ articles, setArticles, onImport, isLoading, importedDat
       </h2>
 
       {protocol.databases.length === 0 && (
-        <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg transition-colors duration-200">
+        <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg transition-colors duration-200" data-tour="import-sources">
           <p className="text-yellow-800 dark:text-yellow-300">
             {t('import.warning')}
           </p>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" data-tour="import-sources">
         {/* Scopus */}
         {protocol.databases.includes('Scopus') && (
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800 transition-colors duration-200">
@@ -2432,7 +2427,7 @@ const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateS
 
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200" data-tour="section-dataprocessing">
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
         <Database className="h-6 w-6 text-purple-600 dark:text-purple-400" />
         {t('dataprocessing.sectionTitle')}
@@ -2525,7 +2520,7 @@ const Filter1Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
   );
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200" data-tour="section-filter1">
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
         <Filter className="h-6 w-6 text-green-600 dark:text-green-400" />
         {t('filter.section1Title')}
@@ -2581,7 +2576,7 @@ const Filter2Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
   const filter2Articles = articles.filter(a => a.filter1Status === 'included');
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200" data-tour="section-filter2">
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
         <Filter className="h-6 w-6 text-blue-600 dark:text-blue-400" />
         {t('filter.section2Title')}
@@ -2636,7 +2631,7 @@ const Filter3Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
   const filter3Articles = articles.filter(a => a.filter2Status === 'included');
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200" data-tour="section-filter3">
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
         <Filter className="h-6 w-6 text-purple-600 dark:text-purple-400" />
         {t('filter.section3Title')}
@@ -2697,14 +2692,29 @@ const Filter3Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
 };
 
 // Componente melhorado para lista de artigos
-const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => {
+// Texto completo dos artigos (Filtros 2 e 3) — ainda não disponível
+const getArticleFullText = async () => null;
+
+const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assistSettings = null, onSetSuggestions, onAddUsage, onDetailsOpenChange }) => {
   const { t } = useTranslation();
+  // Triagem assistida: só nos filtros 1-3 e com chave configurada
+  const assistStage = STAGES.includes(currentFilter) ? currentFilter : null;
+  const assistEnabled = !!assistSettings && !!assistStage;
+  const [batchSnapshot, setBatchSnapshot] = useState(null);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [evaluatingId, setEvaluatingId] = useState(null);
+  const [evaluationError, setEvaluationError] = useState(null);
   const [pagination, setPagination] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   // Filtrar artigos baseado no status (pendente, incluído, excluído)
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const detailsOpen = selectedArticle !== null;
+  useEffect(() => {
+    onDetailsOpenChange?.(detailsOpen);
+    return () => onDetailsOpenChange?.(false);
+  }, [detailsOpen, onDetailsOpenChange]);
   const [showCriterionModal, setShowCriterionModal] = useState(null);
   const [itemsPerPage] = useState(50);
   const [contextMenu, setContextMenu] = useState(null);
@@ -2749,8 +2759,8 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
   };
 
 
-  // Filtrar artigos baseado na seção atual
-  const filteredArticles = useMemo(() => {
+  // Artigos da seção atual (antes de busca e filtro de status)
+  const sectionArticles = useMemo(() => {
     let filtered = [];
 
     switch (currentFilter) {
@@ -2773,6 +2783,13 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
         filtered = [...articles];
     }
 
+    return filtered;
+  }, [articles, currentFilter]);
+
+  // Filtrar artigos baseado na seção atual
+  const filteredArticles = useMemo(() => {
+    let filtered = [...sectionArticles];
+
     // Aplicar busca
     if (searchTerm) {
       filtered = filtered.filter(article =>
@@ -2785,12 +2802,28 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
     }
 
     // Aplicar filtro de status
-    if (statusFilter !== 'all') {
+    if (statusFilter.startsWith('suggest-')) {
+      const wanted = statusFilter.slice('suggest-'.length);
+      filtered = filtered.filter(article => {
+        const suggestion = withCurrentRules(article.aiSuggestions?.[currentFilter], protocol, currentFilter);
+        if (wanted === 'none') return !suggestion;
+        if (wanted === 'uncertain') return suggestion?.decision === 'uncertain' || suggestion?.decision === 'needs-text';
+        return suggestion?.decision === wanted;
+      });
+    } else if (statusFilter !== 'all') {
       const statusField = getStatusField(currentFilter);
       filtered = filtered.filter(article => {
         const status = article[statusField];
         return status === statusFilter;
       });
+    }
+
+    // Ordenação pela relevância da sugestão (título como desempate)
+    if (sortConfig.key === 'relevance') {
+      const rel = (a) => relevanceOf(a.aiSuggestions?.[currentFilter]) ?? -1;
+      const dir = sortConfig.direction === 'asc' ? 1 : -1;
+      filtered.sort((a, b) => (rel(a) - rel(b)) * dir || a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
+      return filtered;
     }
 
     // Aplicar ordenação (score com título como desempate)
@@ -2822,7 +2855,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
     }
 
     return filtered;
-  }, [articles, currentFilter, searchTerm, statusFilter, sortConfig]);
+  }, [sectionArticles, currentFilter, searchTerm, statusFilter, sortConfig, protocol]);
 
 
   const paginatedArticles = useMemo(() => {
@@ -2859,14 +2892,14 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
     );
   };
 
-  const handleInclude = (article, criterion = null) => {
-    onUpdateStatus(article.id, getStatusField(currentFilter), 'included', criterion);
+  const handleInclude = (article, criterion = null, source = 'user') => {
+    onUpdateStatus(article.id, getStatusField(currentFilter), 'included', criterion, source);
     setShowCriterionModal(null);
   };
 
-  const handleExclude = (article, criterion = null) => {
+  const handleExclude = (article, criterion = null, source = 'user') => {
     const statusField = getStatusField(currentFilter);
-    onUpdateStatus(article.id, statusField, 'excluded', criterion);
+    onUpdateStatus(article.id, statusField, 'excluded', criterion, source);
     resetDownstream(article.id, statusField);
     setShowCriterionModal(null);
   };
@@ -2903,9 +2936,87 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
       handleInclude(article, criterion);
     } else if (action === 'exclude') {
       handleExclude(article, criterion);
+    } else if (action === 'accept') {
+      acceptSuggestion(article);
     }
     setContextMenu(null);
   };
+
+  // ── Triagem assistida ──────────────────────────────────────────────────────
+  // Sugestão do filtro atual, com a decisão recalculada pelas regras vigentes
+  const currentSuggestion = (article) =>
+    withCurrentRules(article?.aiSuggestions?.[assistStage] ?? null, protocol, assistStage);
+
+  const suggestionIsStale = (article) =>
+    isSuggestionStale(currentSuggestion(article), protocol, assistStage, null);
+
+  const canAcceptSuggestion = (article) => {
+    const suggestion = currentSuggestion(article);
+    return assistEnabled && !!suggestion && !suggestionIsStale(article) &&
+      (suggestion.decision === 'included' || suggestion.decision === 'excluded');
+  };
+
+  const acceptSuggestion = (article, source = 'jev-accepted') => {
+    const suggestion = currentSuggestion(article);
+    if (!suggestion) return;
+    if (suggestion.decision === 'included') handleInclude(article, suggestion.criteria, source);
+    else if (suggestion.decision === 'excluded') handleExclude(article, suggestion.criteria, source);
+  };
+
+  const evaluateOne = async (article) => {
+    if (!assistEnabled || !article) return;
+    setEvaluatingId(article.id);
+    setEvaluationError(null);
+    try {
+      const fullText = assistStage === 'filter1' ? null : await getArticleFullText(article);
+      const { suggestion, usage } = await evaluateArticle({
+        article,
+        protocol,
+        stage: assistStage,
+        settings: assistSettings,
+        fullText,
+      });
+      onSetSuggestions(assistStage, [{ id: article.id, suggestion }]);
+      if (usage) onAddUsage({ inputTokens: usage.input_tokens ?? 0, requests: 1 });
+    } catch (error) {
+      setEvaluationError(jevErrorMessage(t, error));
+    } finally {
+      setEvaluatingId(null);
+    }
+  };
+
+  const pendingInSection = useMemo(() => {
+    if (!assistStage) return [];
+    const statusField = getStatusField(assistStage);
+    return sectionArticles.filter(a => a[statusField] === 'pending');
+  }, [sectionArticles, assistStage]);
+
+  const applyPreview = useMemo(() => {
+    if (!assistEnabled) return null;
+    const suggestionOf = (a) => withCurrentRules(a.aiSuggestions?.[assistStage] ?? null, protocol, assistStage);
+    const applicable = pendingInSection.filter(a => {
+      const suggestion = suggestionOf(a);
+      return !isSuggestionStale(suggestion, protocol, assistStage, null) &&
+        isAutoApplicable(suggestion, protocol, assistStage);
+    });
+    const include = applicable.filter(a => suggestionOf(a).decision === 'included').length;
+    return {
+      applicable,
+      include,
+      exclude: applicable.length - include,
+      remaining: pendingInSection.length - applicable.length,
+    };
+  }, [assistEnabled, pendingInSection, protocol, assistStage]);
+
+  const applySuggestions = () => {
+    applyPreview?.applicable.forEach(article => acceptSuggestion(article, 'jev-auto'));
+    setShowApplyModal(false);
+  };
+
+  // Limpa o erro da avaliação individual ao trocar de artigo
+  useEffect(() => {
+    setEvaluationError(null);
+  }, [selectedArticle?.id]);
 
   // Fechar menu de contexto ao clicar fora
   useEffect(() => {
@@ -3034,8 +3145,39 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
               <option value="included">{t('articles.included')}</option>
               <option value="excluded">{t('articles.excluded')}</option>
               <option value="duplicate">{t('articles.duplicates')}</option>
+              {assistEnabled && (
+                <>
+                  <option value="suggest-included">{t('assist.filterSuggestInclude')}</option>
+                  <option value="suggest-excluded">{t('assist.filterSuggestExclude')}</option>
+                  <option value="suggest-uncertain">{t('assist.filterSuggestUncertain')}</option>
+                  <option value="suggest-none">{t('assist.filterNoSuggestion')}</option>
+                </>
+              )}
             </select>
           </div>
+
+          {assistEnabled && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setBatchSnapshot(pendingInSection)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 whitespace-nowrap"
+                title={t('assist.evaluatePendingTitle')}
+              >
+                <ListChecks className="h-4 w-4" />
+                {t('assist.evaluatePending')}
+              </button>
+              <button
+                onClick={() => setShowApplyModal(true)}
+                disabled={!applyPreview || applyPreview.applicable.length === 0}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200 whitespace-nowrap"
+                title={t('assist.applySuggestionsTitle')}
+              >
+                <Check className="h-4 w-4" />
+                {t('assist.applySuggestions')}
+                {applyPreview?.applicable.length > 0 && ` (${applyPreview.applicable.length})`}
+              </button>
+            </div>
+          )}
         </div>
 
       </div>
@@ -3104,12 +3246,30 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
                     : <ArrowUpDown className="h-3 w-3" />}
                 </button>
               </th>
+              {assistEnabled && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                  <button
+                    onClick={() => handleSort('relevance')}
+                    className={`flex items-center gap-1 ${sortConfig.key === 'relevance'
+                      ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                      : 'hover:text-gray-700 dark:hover:text-gray-200'}`}
+                    title={t('assist.relevanceTitle')}
+                  >
+                    {t('assist.colRelevance')}
+                    {sortConfig.key === 'relevance'
+                      ? (sortConfig.direction === 'asc'
+                        ? <ArrowUp className="h-3 w-3" />
+                        : <ArrowDown className="h-3 w-3" />)
+                      : <ArrowUpDown className="h-3 w-3" />}
+                  </button>
+                </th>
+              )}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t('articles.colStatus')}</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t('articles.colActions')}</th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {paginatedArticles.map((article) => {
+            {paginatedArticles.map((article, rowIndex) => {
               const statusField = getStatusField(currentFilter);
               const status = article[statusField];
 
@@ -3156,7 +3316,15 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
                       {article.score === null ? '-' : article.score}
                     </span>
                   </td>
+                  {assistEnabled && (
+                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 tabular-nums">
+                      {relevanceOf(currentSuggestion(article)) === null
+                        ? '–'
+                        : Math.round(relevanceOf(currentSuggestion(article)) * 100)}
+                    </td>
+                  )}
                   <td className="px-6 py-4 ">
+                    <div className="flex items-center gap-1.5">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status === 'included' ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300' :
                       status === 'excluded' ? 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300' :
                         status === 'duplicate' ? 'bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300' :
@@ -3167,9 +3335,13 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
                           status === 'duplicate' ? t('articles.statusDuplicate') :
                             t('articles.statusPending')}
                     </span>
+                    {assistEnabled && (
+                      <SuggestionBadge suggestion={currentSuggestion(article)} stale={suggestionIsStale(article)} />
+                    )}
+                    </div>
                   </td>
                   <td className="px-1 py-4 text-sm font-medium">
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 w-fit" data-tour={rowIndex === 0 ? 'article-actions' : undefined}>
                       <button
                         onClick={() => {
                           if (currentFilter === 'dataprocessing') {
@@ -3180,6 +3352,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
                           }
                         }}
                         className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 p-1 transition-colors duration-200"
+                        data-tour={rowIndex === 0 ? 'action-include' : undefined}
                         title={t('articles.includeTitle')}
                       >
                         <CheckCircle size={16} />
@@ -3195,6 +3368,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
                           }
                         }}
                         className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 p-1 transition-colors duration-200"
+                        data-tour={rowIndex === 0 ? 'action-exclude' : undefined}
                         title={t('articles.excludeTitle')}
                       >
                         <XCircle size={16} />
@@ -3203,6 +3377,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
                         onClick={() => { handleDuplicate(article) }}
                         className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 p-1 transition-colors duration-200"
 
+                        data-tour={rowIndex === 0 ? 'action-duplicate' : undefined}
                         title={t('articles.duplicateTitle')}
                       >
                         <BookCopy size={16} />
@@ -3211,6 +3386,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
                       <button
                         onClick={() => getCurrentArticle(article)}
                         className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 p-1 transition-colors duration-200"
+                        data-tour={rowIndex === 0 ? 'action-details' : undefined}
                         title={t('articles.viewDetails')}
                       >
                         <Eye size={16} />
@@ -3288,11 +3464,21 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
         }}
         criteria={showCriterionModal?.type === 'include' ? protocol.inclusionCriteria : showCriterionModal?.type === 'exclude' ? protocol.exclusionCriteria : protocol.extractionCriteria}
         type={showCriterionModal?.type === 'include' ? 'inclusion' : showCriterionModal?.type === 'exclude' ? 'exclusion' : 'extraction'}
-        initialSelected={[
-          ...(showCriterionModal?.article.inclusionCriterion ?? []),
-          ...(showCriterionModal?.article.exclusionCriterion ?? []),
-          ...(showCriterionModal?.article.qualityCriteria ?? []),
-        ]}
+        initialSelected={(() => {
+          const article = showCriterionModal?.article;
+          const selected = [
+            ...(article?.inclusionCriterion ?? []),
+            ...(article?.exclusionCriterion ?? []),
+            ...(article?.qualityCriteria ?? []),
+          ];
+          // Sem critérios marcados: pré-seleciona os da sugestão correspondente
+          const suggestion = canAcceptSuggestion(article) ? currentSuggestion(article) : null;
+          const matches = suggestion && (
+            (showCriterionModal?.type === 'include' && suggestion.decision === 'included') ||
+            (showCriterionModal?.type === 'exclude' && suggestion.decision === 'excluded')
+          );
+          return selected.length === 0 && matches ? suggestion.criteria : selected;
+        })()}
         initialValues={showCriterionModal?.article.extractionCriteria ?? []}
       />
       {/* Modal de detalhes */}
@@ -3311,6 +3497,39 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
           setShowCriterionModal={setShowCriterionModal}
           optionExtraction={optionExtraction}
           janelaRef={janelaRef}
+          assist={assistEnabled ? {
+            suggestion: currentSuggestion(selectedArticle),
+            stale: suggestionIsStale(selectedArticle),
+            criteria: criterias,
+            evaluating: evaluatingId === selectedArticle.id,
+            error: evaluationError,
+            onEvaluate: () => evaluateOne(selectedArticle),
+            onAccept: () => acceptSuggestion(selectedArticle),
+          } : null}
+        />
+      )}
+
+      {batchSnapshot && (
+        <JevBatchModal
+          stage={assistStage}
+          sectionTitle={getSectionTitle()}
+          articles={batchSnapshot}
+          protocol={protocol}
+          settings={assistSettings}
+          getFullText={getArticleFullText}
+          onResults={onSetSuggestions}
+          onUsage={onAddUsage}
+          onClose={() => setBatchSnapshot(null)}
+        />
+      )}
+
+      {showApplyModal && applyPreview && (
+        <JevApplyModal
+          sectionTitle={getSectionTitle()}
+          rule={autoRuleSummary(protocol, assistStage)}
+          preview={applyPreview}
+          onConfirm={applySuggestions}
+          onClose={() => setShowApplyModal(false)}
         />
       )}
 
@@ -3323,6 +3542,20 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
             top: Math.min(contextMenu.y, window.innerHeight - 120)
           }}
         >
+          {canAcceptSuggestion(contextMenu.article) && (
+            <>
+              <button
+                onClick={() => handleContextMenuAction('accept', null, contextMenu.article)}
+                className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150 flex items-center"
+                title={suggestionTooltip(t, currentSuggestion(contextMenu.article), false)}
+              >
+                <ListChecks className="h-4 w-4 text-indigo-600 dark:text-indigo-400 mr-2" />
+                <span>{t('assist.accept')}</span>
+              </button>
+              <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+            </>
+          )}
+
           {/* Opção Incluir com submenu */}
           <div className="relative group">
             <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors duration-150 cursor-pointer flex items-center justify-between">
@@ -3344,7 +3577,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
               {protocol.inclusionCriteria.filter(c => c.value.trim()).map((criterion, index) => (
                 <button
                   key={`inc-${index}`}
-                  onClick={() => handleContextMenuAction('include', criterion.value, contextMenu.article)}
+                  onClick={() => handleContextMenuAction('include', { id: criterion.id, label: criterion.value, category: 'inclusion' }, contextMenu.article)}
                   className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors duration-150"
                   title={criterion.value}
                 >
@@ -3380,7 +3613,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
               {protocol.exclusionCriteria.filter(c => c.value.trim()).map((criterion, index) => (
                 <button
                   key={`exc-${index}`}
-                  onClick={() => handleContextMenuAction('exclude', criterion.value, contextMenu.article)}
+                  onClick={() => handleContextMenuAction('exclude', { id: criterion.id, label: criterion.value, category: 'exclusion' }, contextMenu.article)}
                   className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors duration-150"
                   title={criterion.value}
                 >
@@ -3399,6 +3632,12 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol }) => 
   );
 };
 
+const STATUS_FIELD_STAGE = {
+  filter1Status: 'filter1',
+  filter2Status: 'filter2',
+  filter3Status: 'filter3',
+};
+
 // Componente principal
 const SystematicReviewTool = () => {
   const { t } = useTranslation();
@@ -3408,7 +3647,6 @@ const SystematicReviewTool = () => {
   const [currentSection, setCurrentSection] = useState('protocol');
   const { theme, toggleTheme } = useTheme();
   const [importedData, setImportedData] = useState([]);
-  const [completeProtocol, setCompleteProtocol] = useState(false);
 
 
   // Estado do protocolo
@@ -3454,6 +3692,13 @@ const SystematicReviewTool = () => {
   const autoSaveOfferShownRef = useRef(false);
   const fileInputRef = useRef(null);
 
+  // Guia de primeiros passos: o tour abre sozinho na primeira visita e, ao terminar,
+  // dá lugar ao checklist, que o botão do cabeçalho mostra ou oculta
+  const [showChecklist, setShowChecklist] = useState(() => hasSeenTour() && !isChecklistHidden());
+  const [articleDetailsOpen, setArticleDetailsOpen] = useState(false);
+  // Durante o tour o checklist fica recolhido, exceto no passo que o apresenta
+  const [tourStage, setTourStage] = useState(null); // null | 'running' | 'checklist'
+
   const [showSupport, setShowSupport] = useState(false);
   const [showSupportRequest, setShowSupportRequest] = useState(false);
   const supportInteractedRef = useRef(false);
@@ -3462,6 +3707,10 @@ const SystematicReviewTool = () => {
   const SUPPORT_REQUEST_INTERVAL_MS = 60 * 60 * 1000; // 1h
 
   const [alertMessage, setAlertMessage] = useState(null);
+
+  // Triagem assistida (Jev): configurações locais da máquina
+  const [jevSettings, setJevSettings] = useState(loadJevSettings);
+  const [showJevSettings, setShowJevSettings] = useState(false);
 
   // Auto-save setup
   useEffect(() => {
@@ -3498,23 +3747,6 @@ const SystematicReviewTool = () => {
     clearFileHandle();
     localStorage.removeItem('sysreview-auto-save');
   }, []);
-
-  useEffect(() => {
-
-    const completeInclusion = protocol.inclusionCriteria.map(a => a.value).some(c => c.trim())
-    const completeExclusion = protocol.exclusionCriteria.map(a => a.value).some(c => c.trim())
-    const completeQuality = protocol.qualityCriteria.map(a => a.value).some(c => c.trim())
-    const completeDatabases = protocol.databases.length > 0
-    const completeKeywords = protocol.keywords.some(c => c.trim())
-
-
-    if (protocol.title && protocol.researchQuestion && completeInclusion && completeExclusion && completeQuality && completeDatabases && completeKeywords) {
-      setCompleteProtocol(true)
-    } else {
-      setCompleteProtocol(false)
-    }
-
-  }, [protocol]);
 
   // Detectar mudanças
   const prevDataRef = useRef(null);
@@ -3606,6 +3838,51 @@ const SystematicReviewTool = () => {
 
     return { importSection, dataProcessing, filter1, filter2, filter3 };
   }, [articles, importedData]);
+
+  // Protocolo completo: título, pergunta, palavras-chave, bases e critérios de
+  // inclusão, exclusão e qualidade com texto (usado no painel e no checklist)
+  const protocolReady = useMemo(() => {
+    const filled = (list) => (list ?? []).some(c => c.value?.trim());
+    return !!protocol.title
+      && !!protocol.researchQuestion
+      && (protocol.keywords ?? []).some(k => k.trim())
+      && filled(protocol.inclusionCriteria)
+      && filled(protocol.exclusionCriteria)
+      && filled(protocol.qualityCriteria)
+      && protocol.databases.length > 0;
+  }, [protocol]);
+
+  const checklistItems = useMemo(
+    () => buildChecklistItems({ protocolReady, articles, statistics, lastSaved }),
+    [protocolReady, articles, statistics, lastSaved]
+  );
+
+  const showGuideChecklist = useCallback(() => {
+    setShowChecklist(true);
+    setChecklistHidden(false);
+  }, []);
+
+  const { startTour, showActions } = useGuidedTour({
+    currentSection,
+    setCurrentSection,
+    hasArticles: articles.length > 0,
+    onStart: () => setTourStage('running'),
+    onBeforeChecklist: () => {
+      setTourStage('checklist');
+      showGuideChecklist();
+    },
+    onFinish: () => {
+      setTourStage(null);
+      showGuideChecklist();
+    },
+  });
+
+  // Primeira visita: inicia o tour depois que a interface foi montada
+  useEffect(() => {
+    if (hasSeenTour()) return;
+    const timer = setTimeout(startTour, 400);
+    return () => clearTimeout(timer);
+  }, [startTour]);
 
   // Salvamento automático com debounce (só quando há alterações não salvas)
   useEffect(() => {
@@ -3987,6 +4264,20 @@ const SystematicReviewTool = () => {
       copyProtocol[0][`EX${index + 1}`] = criterion.value || "";
       headerProtocol[`EX${index + 1}`] = `Extraction Criterion ${index + 1}`;
     });
+
+    // Modelo e limiares da triagem assistida, para o relato da revisão
+    if (articles.some(a => a.aiSuggestions && Object.keys(a.aiSuggestions).length > 0)) {
+      const aiConfig = getAiConfig(protocol);
+      copyProtocol[0].assistModel = aiConfig.model;
+      headerProtocol.assistModel = "Screening Assistant Model";
+      copyProtocol[0].assistThresholds = STAGES.map((stage, i) => {
+        const rule = aiConfig.rules[stage];
+        return rule.mode === 'inclusive'
+          ? `F${i + 1} (inclusive): include if p(inclusion) >= ${rule.includeAt} and no exclusion >= 0.5; batch-exclude if p(exclusion) >= ${rule.excludeAt}`
+          : `F${i + 1} (strict): batch-apply if p >= ${rule.applyAt}`;
+      }).join("; ");
+      headerProtocol.assistThresholds = "Screening Assistant Batch Rules";
+    }
     const workbook = new ExcelJS.Workbook();
     const wsProtocol = workbook.addWorksheet(t("export.protocolSheet"));
     // Colunas (header + key)
@@ -4049,6 +4340,21 @@ const SystematicReviewTool = () => {
           }, {})
           : {};
 
+        // Sugestões da triagem assistida e origem da decisão por filtro
+        const assistAttributes = STAGES.reduce((acc, stage, i) => {
+          const suggestion = withCurrentRules(article.aiSuggestions?.[stage], protocol, stage);
+          const source = article.decisionSource?.[stage];
+          acc[`suggestionF${i + 1}`] = suggestion
+            ? `${suggestion.decision}${suggestion.criteria?.length ? ` (${suggestion.criteria.map(c => c.id).join("; ")})` : ""}`
+            : "";
+          const probability = suggestionProbability(suggestion);
+          acc[`suggestionProbabilityF${i + 1}`] = probability === null ? "" : Math.round(probability * 1000) / 1000;
+          const relevance = relevanceOf(suggestion);
+          acc[`relevanceF${i + 1}`] = relevance === null ? "" : Math.round(relevance * 1000) / 1000;
+          acc[`decisionSourceF${i + 1}`] = source === 'jev-auto' ? "Suggestion (batch)" : source === 'jev-accepted' ? "Suggestion (accepted)" : source === 'user' ? "Manual" : "";
+          return acc;
+        }, {});
+
         const exclusionCriterions = article.exclusionCriterion.map(a => a.id)
         const inclusionCriterions = article.inclusionCriterion.map(a => a.id)
         const qualityCriterias = article.qualityCriteria.map(a => a.id)
@@ -4068,6 +4374,7 @@ const SystematicReviewTool = () => {
             ? qualityCriterias.join("; ")
             : "",
           ...extractionAttributes,
+          ...assistAttributes,
         };
       });
 
@@ -4099,7 +4406,16 @@ const SystematicReviewTool = () => {
       exclusionCriterion: "Exclusion Criteria",
       qualityCriteria: "Quality Criteria",
     };
+    const usesAssist = articles.some(a => a.aiSuggestions && Object.keys(a.aiSuggestions).length > 0);
+    const headerAssist = usesAssist ? STAGES.reduce((acc, stage, i) => {
+      acc[`suggestionF${i + 1}`] = `Suggestion Filter ${i + 1}`;
+      acc[`suggestionProbabilityF${i + 1}`] = `Suggestion Probability Filter ${i + 1}`;
+      acc[`relevanceF${i + 1}`] = `Relevance Filter ${i + 1}`;
+      acc[`decisionSourceF${i + 1}`] = `Decision Source Filter ${i + 1}`;
+      return acc;
+    }, {}) : {};
     const headerArticlesFinal = {
+      ...headerAssist,
       importDate: "Imported Date",
       lastModified: "Last Modified",
     };
@@ -4238,13 +4554,25 @@ const SystematicReviewTool = () => {
     setLoading(false);
   }, []);
 
-  const handleUpdateStatus = useCallback((id, statusType, status, criterion = null) => {
+  const handleUpdateStatus = useCallback((id, statusType, status, criterion = null, source = 'user') => {
     setArticles(prev => prev.map(article => {
       if (article.id !== id) return article;
 
-      const base = status !== 'extracted'
+      let base = status !== 'extracted'
         ? { ...article, [statusType]: status, lastModified: new Date() } :
         { ...article, lastModified: new Date() };
+
+      // Origem da decisão por filtro (manual, sugestão aceita ou aplicada em lote)
+      const stage = STATUS_FIELD_STAGE[statusType];
+      if (stage && status !== 'extracted') {
+        const { [stage]: _previous, ...otherSources } = article.decisionSource ?? {};
+        base = {
+          ...base,
+          decisionSource: status === 'included' || status === 'excluded'
+            ? { ...otherSources, [stage]: source }
+            : otherSources,
+        };
+      }
 
       // Cascade reset — apenas atualiza o campo de status
       if (status === null) return base;
@@ -4275,6 +4603,33 @@ const SystematicReviewTool = () => {
         qualityCriteria: newQualityCriteria,
       };
     }));
+  }, []);
+
+  // Salva as sugestões geradas para um filtro: entries = [{ id, suggestion }]
+  const handleSetSuggestions = useCallback((stage, entries) => {
+    if (!entries.length) return;
+    const byId = new Map(entries.map(e => [e.id, e.suggestion]));
+    setArticles(prev => prev.map(article => byId.has(article.id)
+      ? { ...article, aiSuggestions: { ...(article.aiSuggestions ?? {}), [stage]: byId.get(article.id) } }
+      : article
+    ));
+  }, []);
+
+  // Acumula o consumo de tokens no protocolo do projeto
+  const handleAddUsage = useCallback(({ inputTokens = 0, requests = 0 }) => {
+    setProtocol(prev => {
+      const config = getAiConfig(prev);
+      return {
+        ...prev,
+        aiConfig: {
+          ...config,
+          usage: {
+            inputTokens: config.usage.inputTokens + inputTokens,
+            requests: config.usage.requests + requests,
+          },
+        },
+      };
+    });
   }, []);
 
   // Função para detectar duplicatas por diferentes critérios
@@ -4313,7 +4668,7 @@ const SystematicReviewTool = () => {
   }, [articles]);
 
   const ConfigureNotification = () => (
-    <button onClick={() => setShowReminderSettings(true)}
+    <button onClick={() => setShowReminderSettings(true)} data-tour="reminder"
       className="p-2 rounded-lg transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center"
       title={t('header.notification')}
     >
@@ -4321,10 +4676,19 @@ const SystematicReviewTool = () => {
     </button>
   );
 
+  const AssistSettings = () => (
+    <button onClick={() => setShowJevSettings(true)} data-tour="assist"
+      className="p-2 rounded-lg transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center"
+      title={t('assist.headerButton')}
+    >
+      <ListChecks className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+    </button>
+  );
+
   // Componente Support
   const Support = () => {
     return (
-      <button onClick={() => setShowSupport(true)}
+      <button onClick={() => setShowSupport(true)} data-tour="support"
         className="p-2 rounded-lg transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center"
         title={t('header.support')}
       >
@@ -4333,11 +4697,25 @@ const SystematicReviewTool = () => {
     );
   };
 
+  const GuideButton = () => (
+    <button onClick={() => {
+      setShowChecklist(!showChecklist);
+      setChecklistHidden(showChecklist);
+    }}
+      data-tour="guide-button"
+      className="p-2 rounded-lg transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center"
+      title={t('header.guide')}
+      aria-pressed={showChecklist}
+    >
+      <GraduationCap className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+    </button>
+  );
+
   const FileMenu = () => (
-    <div className="relative col-span-4 min-[440px]:col-auto w-full min-[440px]:w-auto" onClick={e => e.stopPropagation()}>
+    <div data-tour="file-menu" className="relative col-span-6 min-[520px]:col-auto w-full min-[520px]:w-auto" onClick={e => e.stopPropagation()}>
       <button
         onClick={() => setShowFileMenu(!showFileMenu)}
-        className="w-full min-[440px]:w-auto justify-center px-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-1"
+        className="w-full min-[520px]:w-auto justify-center px-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-1"
         title={t('file.menu')}
       >
         <FileText className="h-5 w-5" />
@@ -4440,13 +4818,15 @@ const SystematicReviewTool = () => {
     { id: 'filter1', name: t('nav.filter1'), icon: Filter },
     { id: 'filter2', name: t('nav.filter2'), icon: Filter },
     { id: 'filter3', name: t('nav.filter3'), icon: Filter },
-    { id: 'statistics', name: t('nav.statistics'), icon: ChartArea }
+    { id: 'statistics', name: t('nav.statistics'), icon: ChartArea },
+    { id: 'about', name: t('nav.about'), icon: Info }
   ];
   const sectionGroups = [
     [sections[0], sections[1]],  // Protocolo + Tratamento
     [sections[2]],       // Importação (sozinho)
     [sections[3], sections[4], sections[5]], // Filtro 1, 2, 3
     [sections[6]],                    // Estatísticas (sozinho)
+    [sections[7]],                    // Sobre (sozinho)
   ];
 
   return (
@@ -4472,17 +4852,19 @@ const SystematicReviewTool = () => {
               <StatusIndicator />
             </div>
 
-            <div className="grid min-[440px]:flex w-full min-[440px]:w-auto grid-cols-4 items-center gap-2 flex-shrink-0">
+            <div className="grid min-[520px]:flex min-[520px]:flex-wrap w-full min-[520px]:w-auto max-w-full grid-cols-6 items-center gap-2">
               <FileMenu />
               <ConfigureNotification />
-              <Support />
+              <AssistSettings />
+              <GuideButton />
               <LanguageSelector />
+              <Support />
               <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
             </div>
           </div>
 
           {/* Navegação entre seções */}
-          <nav className="flex flex-wrap gap-2">
+          <nav className="flex flex-wrap gap-2" data-tour="nav">
             {sectionGroups.map((group, i) => (
               <div key={i} className="flex flex-nowrap gap-2">
                 {group.map((section) => {
@@ -4493,6 +4875,7 @@ const SystematicReviewTool = () => {
                   return (
                     <button
                       key={section.id}
+                      data-tour={`nav-${section.id}`}
                       onClick={() => setCurrentSection(section.id)}
                       disabled={isDisabled}
                       title={isDisabled ? t('nav.importArticlesDisabled') : section.name}
@@ -4516,12 +4899,12 @@ const SystematicReviewTool = () => {
             ))}
           </nav>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg grid grid-cols-3 md:grid-cols-6 gap-3  mb-6 transition-colors duration-200">
+        <div data-tour="overview" className="bg-white dark:bg-gray-800 p-4 rounded-lg grid grid-cols-3 md:grid-cols-6 gap-3  mb-6 transition-colors duration-200">
           <div className="grid grid-cols-[24px_1fr] gap-2 items-center w-full max-w-[140px] mx-auto ">
             <Settings className="h-6 w-6 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
             <div className="min-w-0">
               <p className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight">
-                {completeProtocol ? '✓' : '○'}
+                {protocolReady ? '✓' : '○'}
               </p>
               <p className="text-gray-600 dark:text-gray-400 text-xs leading-tight truncate">{t('overview.protocol')}</p>
             </div>
@@ -4632,6 +5015,10 @@ const SystematicReviewTool = () => {
           />
         )}
 
+        {currentSection === 'about' && (
+          <AboutSection />
+        )}
+
         {currentSection === 'statistics' && (
           <StatisticsSection
             articles={articles}
@@ -4653,6 +5040,24 @@ const SystematicReviewTool = () => {
             currentFilter={currentSection}
             onUpdateStatus={handleUpdateStatus}
             protocol={protocol}
+            assistSettings={jevSettings.apiKey ? jevSettings : null}
+            onSetSuggestions={handleSetSuggestions}
+            onAddUsage={handleAddUsage}
+            onDetailsOpenChange={setArticleDetailsOpen}
+          />
+        )}
+
+        {showJevSettings && (
+          <JevSettingsModal
+            settings={jevSettings}
+            aiConfig={protocol.aiConfig}
+            onSave={(settings, aiConfig) => {
+              setJevSettings(settings);
+              saveJevSettings(settings);
+              setProtocol(prev => ({ ...prev, aiConfig }));
+              setShowJevSettings(false);
+            }}
+            onClose={() => setShowJevSettings(false)}
           />
         )}
 
@@ -4700,6 +5105,18 @@ const SystematicReviewTool = () => {
             currentMinutes={warnAfterMin}
             onConfirm={(min) => { setWarnAfterMin(min); setShowSupport(false); }}
             onClose={() => setShowSupport(false)}
+          />
+        )}
+
+        {showChecklist && !articleDetailsOpen && (
+          <OnboardingChecklist
+            items={checklistItems}
+            isSectionAvailable={(id) => !(sectionsToCheck.includes(id) && articles.length === 0)}
+            onGoToSection={(id) => (id.startsWith('filter') ? showActions(id) : setCurrentSection(id))}
+            onStartTour={startTour}
+            onClose={() => { setShowChecklist(false); setChecklistHidden(true); }}
+            forceExpanded={tourStage === 'checklist'}
+            forceCollapsed={tourStage === 'running'}
           />
         )}
 

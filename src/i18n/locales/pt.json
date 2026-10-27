@@ -20,6 +20,7 @@
     "unsavedCheckbox": "Salvar automaticamente neste arquivo"
   },
   "nav": {
+    "about": "Sobre",
     "protocol": "Protocolo",
     "import": "Importação",
     "dataprocessing": "Tratamento",
@@ -43,7 +44,8 @@
     "dark": "escuro",
     "notification": "Configurar lembrete de salvamento",
     "support": "Apoiar o projeto",
-    "language": "Idioma: {{lang}}"
+    "language": "Idioma: {{lang}}",
+    "guide": "Guia de primeiros passos"
   },
   "lang": {
     "pt": "Português",
@@ -436,5 +438,280 @@
     "networkHelpEdgeText": "Uma aresta liga dois nós que aparecem juntos em pelo menos um artigo. A espessura é proporcional ao peso da relação: no método pleno, o peso é o número de artigos em que o par aparece junto; no método fracionário, é a soma dos pesos fracionários calculados para cada artigo.",
     "networkHelpCountingTitle": "Contagem fracionária × plena",
     "networkHelpCountingText": "No método pleno, cada par de nós de um mesmo artigo recebe peso 1. Com isso, artigos com muitos autores ou muitas palavras-chave podem inflar as conexões. No método fracionário, cada artigo contribui com peso total de 1, dividido igualmente entre todos os pares (1 dividido pelo número de pares), evitando esse viés. O método recomendado é o fracionário (Perianes-Rodriguez, Waltman & van Eck, 2016)."
+  },
+  "assist": {
+    "relevanceTitle": "Escore da sugestão: probabilidade de inclusão × (1 − maior probabilidade de exclusão). Ordene para revisar primeiro os mais relevantes.",
+    "colRelevance": "Relevância",
+    "applyBodyInclusive": "Filtro inclusivo: serão incluídos os artigos com probabilidade de inclusão de pelo menos {{includeAt}}% (sem critério de exclusão provável) e excluídos os com probabilidade de exclusão de pelo menos {{excludeAt}}%. Os demais continuam pendentes para revisão manual.",
+    "probability": "Probabilidade: {{value}}%",
+    "rulesHint": "O Filtro 1 é inclusivo: a inclusão exige apenas indício dos critérios de inclusão e nenhum critério de exclusão com probabilidade de 50% ou mais. Nos Filtros 2 e 3, todos os critérios precisam atingir o valor indicado.",
+    "ruleApply": "Filtro {{n}} · aplicar se a probabilidade for",
+    "ruleF1Exclude": "Filtro 1 · excluir se a probabilidade de algum critério de exclusão for",
+    "ruleF1Include": "Filtro 1 · incluir se a probabilidade de atender aos critérios de inclusão for",
+    "rulesTitle": "Regras para aplicar sugestões em lote",
+    "headerButton": "Seleção assistida por IA",
+    "settingsTitle": "Seleção assistida por IA",
+    "intro": "Gera sugestões de inclusão e exclusão a partir dos critérios do protocolo, usando o modelo Jev (TypeSafe). Nenhuma decisão é aplicada sem a sua confirmação.",
+    "apiKey": "Chave de API (TypeSafe)",
+    "apiKeyPlaceholder": "Cole aqui a sua chave",
+    "apiKeyHint": "Fica salva apenas neste navegador e não é incluída no arquivo do projeto.",
+    "getKey": "Obter uma chave",
+    "removeKey": "Remover chave",
+    "model": "Modelo",
+    "baseUrl": "Endereço da API (opcional)",
+    "baseUrlHint": "Deixe em branco para usar o padrão. Informe um proxy caso o navegador bloqueie o acesso direto.",
+    "concurrency": "Requisições simultâneas",
+    "longContext": "Permitir textos longos (mais lento)",
+    "minQuality": "Nota média mínima de qualidade para sugerir inclusão (Filtro 3)",
+    "minQualityLevels": "0 = não atende · 1 = atende parcialmente · 2 = atende plenamente",
+    "test": "Testar conexão",
+    "testing": "Testando...",
+    "testOk": "Conexão estabelecida ({{model}}).",
+    "usage": "Uso neste projeto: {{tokens}} tokens de entrada (~US$ {{cost}})",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "errorNetwork": "Não foi possível acessar a API. Verifique a conexão ou informe um proxy no endereço da API.",
+    "errorAuth": "Chave de API inválida ou sem permissão.",
+    "errorRateLimit": "Limite de requisições atingido. Tente novamente em instantes.",
+    "errorApi": "Erro da API: {{error}}",
+    "errorNoKey": "Configure a chave de API em Seleção assistida por IA.",
+    "evaluatePending": "Avaliar pendentes",
+    "evaluatePendingTitle": "Gerar sugestões para os artigos pendentes deste filtro",
+    "applySuggestions": "Aplicar sugestões",
+    "applySuggestionsTitle": "Aplicar as sugestões com confiança acima do limite configurado",
+    "suggestInclude": "Sugestão: incluir",
+    "suggestExclude": "Sugestão: excluir",
+    "suggestUncertain": "Sugestão: revisão manual",
+    "needsText": "Texto completo necessário para sugerir",
+    "stale": "Sugestão desatualizada (critérios ou texto alterados)",
+    "filterSuggestInclude": "Sugestão: incluir",
+    "filterSuggestExclude": "Sugestão: excluir",
+    "filterSuggestUncertain": "Sugestão: revisão manual",
+    "filterNoSuggestion": "Sem sugestão",
+    "batchTitle": "Avaliar pendentes · {{section}}",
+    "batchPending": "{{count}} artigos pendentes neste filtro.",
+    "batchToSend": "{{count}} serão avaliados.",
+    "batchAlready": "{{count}} já possuem sugestão válida.",
+    "batchReevaluate": "Reavaliar também os que já possuem sugestão",
+    "batchNeedsText": "{{count}} sem texto suficiente (não serão enviados).",
+    "batchEstimate": "Estimativa: {{min}} a {{max}} tokens de entrada (~US$ {{costMin}} a US$ {{costMax}}).",
+    "batchStart": "Iniciar",
+    "batchStop": "Interromper",
+    "batchClose": "Fechar",
+    "batchProgress": "{{done}} de {{total}} avaliados",
+    "batchErrors": "{{count}} com erro",
+    "batchDone": "Avaliação concluída.",
+    "batchStopped": "Avaliação interrompida.",
+    "batchResultInclude": "Incluir",
+    "batchResultExclude": "Excluir",
+    "batchResultUncertain": "Revisão manual",
+    "batchResultNeedsText": "Sem texto",
+    "batchUsage": "Consumo desta avaliação: {{tokens}} tokens de entrada em {{requests}} requisições (~US$ {{cost}}).",
+    "batchUsageUnavailable": "{{requests}} requisições realizadas; a API não informou o consumo de tokens.",
+    "batchUsageProject": "Total acumulado neste projeto: {{tokens}} tokens (~US$ {{cost}}).",
+    "batchNothing": "Não há artigos para avaliar.",
+    "applyTitle": "Aplicar sugestões · {{section}}",
+    "applyBody": "Serão aplicadas apenas as sugestões com probabilidade de pelo menos {{applyAt}}% em artigos ainda pendentes. Os demais continuam pendentes para revisão manual.",
+    "applyInclude": "{{count}} serão incluídos",
+    "applyExclude": "{{count}} serão excluídos",
+    "applyRemaining": "{{count}} continuam pendentes",
+    "applyConfirm": "Aplicar",
+    "applied": "{{count}} decisões aplicadas.",
+    "applyNothing": "Nenhuma sugestão atinge a confiança mínima configurada.",
+    "suggestionTitle": "Sugestão",
+    "accept": "Aceitar sugestão",
+    "evaluate": "Gerar sugestão",
+    "reevaluate": "Reavaliar",
+    "evaluating": "Avaliando...",
+    "basedOn": "Baseado em: {{fields}}",
+    "evaluatedAt": "Avaliado em {{date}} · {{model}}",
+    "inclusionHeading": "Critérios de inclusão",
+    "exclusionHeading": "Critérios de exclusão",
+    "qualityHeading": "Critérios de qualidade",
+    "qualityLevel0": "Não atende",
+    "qualityLevel1": "Atende parcialmente",
+    "qualityLevel2": "Atende plenamente",
+    "field": {
+      "title": "título",
+      "keywords": "palavras-chave",
+      "abstract": "resumo",
+      "introduction": "introdução",
+      "conclusion": "conclusão",
+      "sections": "texto completo"
+    }
+  },
+  "about": {
+    "sectionTitle": "Sobre",
+    "version": "SysReview · versão {{version}}",
+    "whatTitle": "O que é o SysReview",
+    "whatText": "Ferramenta gratuita e 100% executada no navegador para conduzir revisões bibliográficas sistemáticas segundo a metodologia PRISMA, da definição do protocolo à análise bibliométrica e exportação dos resultados.",
+    "features": [
+      "Protocolo com questão de pesquisa, palavras-chave e critérios de inclusão, exclusão, qualidade e extração",
+      "Importação de BibTeX (Scopus, Web of Science, ScienceDirect) e MEDLINE (PubMed) com detecção de duplicatas",
+      "Pontuação automática por palavras-chave com pesos configuráveis",
+      "Três filtros sequenciais com registro dos critérios de cada decisão",
+      "Diagrama PRISMA, estatísticas e redes bibliométricas",
+      "Exportação do projeto (.srp) e dos dados (.xlsx)"
+    ],
+    "workflowTitle": "Fluxo de trabalho",
+    "workflow": [
+      "Protocolo: defina a questão de pesquisa, as palavras-chave e os critérios.",
+      "Importação: carregue os arquivos das bases e informe a string de busca usada.",
+      "Tratamento: confirme duplicatas e selecione os artigos que seguem para os filtros.",
+      "Filtro 1: triagem por título, palavras-chave e resumo.",
+      "Filtro 2: leitura da introdução e da conclusão.",
+      "Filtro 3: leitura do texto completo, avaliação de qualidade e extração de dados.",
+      "Estatísticas: diagrama PRISMA, gráficos, redes e exportação."
+    ],
+    "assistTitle": "Seleção assistida por IA",
+    "assistText": "Recurso opcional que sugere a inclusão ou exclusão de cada artigo com base nos critérios do protocolo, usando o modelo Jev (TypeSafe). Cada critério vira uma pergunta independente, e o modelo devolve a probabilidade de o artigo atendê-lo.",
+    "assistStages": [
+      "Filtro 1: título, palavras-chave e resumo.",
+      "Filtro 2: além disso, introdução e conclusão do texto completo.",
+      "Filtro 3: texto completo, incluindo a avaliação dos critérios de qualidade."
+    ],
+    "assistDecision": "No Filtro 1, que é inclusivo, o artigo é sugerido para inclusão quando há indício de que atende aos critérios de inclusão e nenhum critério de exclusão é provável, e para exclusão quando algum critério de exclusão é provável; a exclusão em lote exige probabilidade alta (95% por padrão). Nos Filtros 2 e 3, a inclusão exige que todos os critérios sejam atendidos. Os demais artigos ficam para revisão manual, ordenáveis pela relevância. Nenhuma decisão é aplicada sem a sua confirmação, e a origem de cada decisão (manual, sugestão aceita ou aplicada em lote) é registrada na exportação.",
+    "assistCost": "O uso exige uma chave de API própria da TypeSafe. O custo estimado é mostrado antes de cada avaliação em lote.",
+    "privacyTitle": "Privacidade e dados",
+    "privacy": [
+      "Todo o processamento acontece no seu navegador; não há servidor do SysReview.",
+      "O projeto fica no armazenamento local do navegador e no arquivo .srp que você salva.",
+      "Com a seleção assistida por IA ativada, apenas os textos necessários de cada artigo (título, palavras-chave, resumo e, nos Filtros 2 e 3, o texto completo) e os critérios são enviados à API da TypeSafe.",
+      "A chave de API fica somente neste navegador e nunca é gravada no arquivo do projeto."
+    ],
+    "authorTitle": "Autor",
+    "authorLocation": "São Carlos, SP, Brasil",
+    "authorBio": "Doutorando em Engenharia Civil (Estruturas e Geotecnia) na Universidade Federal de São Carlos (UFSCar), bolsista CAPES. Engenheiro civil pelo IFSP (2022) e técnico em informática pela ETEC (2017). Possui pesquisas desenvolvidas ou em desenvolvimento na área de estruturas de madeira, simulação numérica de Madeira Lamelada Colada Cruzada (ABAQUS), incluindo implementação de sub-rotinas de dano-plasticidade acoplado (UMAT/VUMAT) em Abaqus. Atua ainda no desenvolvimento de modelos de regressão via programação genética e redes neurais artificiais (Python) e de softwares aplicados à Engenharia Civil (HTML, CSS, JavaScript, Python).",
+    "lattes": "Currículo Lattes",
+    "techTitle": "Tecnologias",
+    "techText": "React, Vite, Tailwind CSS, Recharts, ExcelJS, Graphology (Louvain), vis-network, react-i18next e Lucide."
+  },
+  "tour": {
+    "progress": "{{current}} de {{total}}",
+    "gotIt": "Entendi",
+    "next": "Próximo",
+    "previous": "Anterior",
+    "done": "Concluir",
+    "lockedHint": "Disponível depois que você importar artigos.",
+    "steps": {
+      "welcome": {
+        "title": "Bem-vindo ao SysReview",
+        "body": "Este tour mostra cada parte do app para conduzir uma revisão sistemática segundo o PRISMA. Use as setas do teclado para navegar ou Esc para sair a qualquer momento."
+      },
+      "fileMenu": {
+        "title": "Arquivo",
+        "body": "Seu trabalho fica em um arquivo de projeto (.srp). Aqui você cria, abre e salva projetos e exporta os dados para Excel. Abaixo do título aparece se há alterações não salvas."
+      },
+      "reminder": {
+        "title": "Lembrete de salvamento",
+        "body": "Defina de quanto em quanto tempo o app deve lembrar você de salvar o projeto."
+      },
+      "assist": {
+        "title": "Seleção assistida por IA (opcional)",
+        "body": "Sugere inclusões e exclusões a partir dos critérios do protocolo, com o modelo Jev. Exige uma chave de API própria e nenhuma decisão é aplicada sem sua confirmação."
+      },
+      "language": {
+        "title": "Idioma",
+        "body": "Alterna a interface entre português e inglês."
+      },
+      "support": {
+        "title": "Apoie o projeto",
+        "body": "O SysReview é gratuito e mantido sem fins lucrativos. Aqui você encontra como contribuir com uma doação."
+      },
+      "theme": {
+        "title": "Tema",
+        "body": "Alterna entre os temas claro e escuro."
+      },
+      "guide": {
+        "title": "Guia de primeiros passos",
+        "body": "Este botão mostra ou oculta o checklist de progresso, de onde você pode refazer este tour."
+      },
+      "nav": {
+        "title": "Seções da revisão",
+        "body": "As seções seguem a ordem do trabalho: Protocolo, Importação, Tratamento, Filtros 1 a 3, Estatísticas e Sobre."
+      },
+      "overview": {
+        "title": "Painel de progresso",
+        "body": "Resume o andamento: protocolo completo, artigos importados e artigos incluídos em cada etapa."
+      },
+      "protocolBasic": {
+        "title": "Protocolo: informações básicas",
+        "body": "Comece pelo título, pela pergunta de pesquisa, pelo período de publicação e pelos idiomas aceitos."
+      },
+      "protocolDatabases": {
+        "title": "Protocolo: bases de dados",
+        "body": "Selecione as bases em que você fez as buscas. Só as bases marcadas aparecem na Importação."
+      },
+      "protocolCriteria": {
+        "title": "Protocolo: critérios",
+        "body": "Defina os critérios de inclusão e de exclusão. Eles justificam cada decisão nos filtros. Logo abaixo ficam os critérios de qualidade e de extração, usados no Filtro 3."
+      },
+      "protocolScoring": {
+        "title": "Protocolo: palavras-chave e score",
+        "body": "Cada artigo recebe um score de relevância conforme as palavras-chave encontradas no título, no resumo e nas palavras-chave, com pesos que você ajusta."
+      },
+      "import": {
+        "title": "Importação",
+        "body": "Carregue os arquivos exportados das bases (BibTeX ou MEDLINE .txt do PubMed) e informe a string de busca usada, que fica registrada para documentar a metodologia."
+      },
+      "dataprocessing": {
+        "title": "Tratamento",
+        "body": "Duplicatas são marcadas automaticamente. Aqui você exclui os artigos com score 0 e aceita os pendentes para que sigam ao Filtro 1."
+      },
+      "filter1": {
+        "title": "Filtro 1: título, palavras-chave e resumo",
+        "body": "Cada artigo tem botões de ação para registrar sua decisão. A seguir, veja cada um. Na dúvida, inclua: os filtros seguintes refinam a seleção."
+      },
+      "action_include": {
+        "title": "Incluir",
+        "body": "Mantém o artigo na revisão. Nos filtros, você escolhe o critério de inclusão que justifica a decisão."
+      },
+      "action_exclude": {
+        "title": "Excluir",
+        "body": "Retira o artigo nesta etapa. Você escolhe o critério de exclusão que justifica a decisão."
+      },
+      "action_duplicate": {
+        "title": "Duplicata",
+        "body": "Marca o artigo como duplicata de outro já listado. Ele deixa de seguir para as próximas etapas."
+      },
+      "action_details": {
+        "title": "Detalhes",
+        "body": "Abre o artigo com resumo, palavras-chave e demais dados. Dá para passar de um artigo a outro com Anterior e Próximo."
+      },
+      "filter2": {
+        "title": "Filtro 2: introdução e conclusão",
+        "body": "Recebe os incluídos no Filtro 1. Leia a introdução e a conclusão de cada artigo (no PDF ou no site da revista) e use os mesmos botões de ação para confirmar ou não a inclusão."
+      },
+      "filter3": {
+        "title": "Filtro 3: texto completo",
+        "body": "Leia o texto completo e decida a inclusão final pelos botões de ação. Nos detalhes do artigo (olho), avalie a qualidade e preencha os critérios de extração."
+      },
+      "statistics": {
+        "title": "Estatísticas",
+        "body": "As abas reúnem o fluxograma PRISMA, os gráficos por ano, país e veículo, o panorama dos critérios e as redes bibliométricas, todos exportáveis."
+      },
+      "checklist": {
+        "title": "Seus primeiros passos",
+        "body": "Este checklist acompanha o progresso do projeto e leva você à próxima etapa. Você pode recolhê-lo, fechá-lo ou refazer o tour por aqui."
+      }
+    }
+  },
+  "checklist": {
+    "title": "Primeiros passos",
+    "expand": "Expandir primeiros passos",
+    "collapse": "Recolher",
+    "close": "Fechar (reabra pelo botão de chapéu no cabeçalho)",
+    "goTo": "Ir para a seção",
+    "startTour": "Fazer o tour guiado",
+    "allDone": "Tudo pronto! Sua revisão passou por todas as etapas.",
+    "items": {
+      "protocol": "Definir o protocolo",
+      "import": "Importar os artigos",
+      "dataprocessing": "Concluir o tratamento",
+      "filter1": "Concluir o Filtro 1",
+      "filter2": "Concluir o Filtro 2",
+      "filter3": "Concluir o Filtro 3",
+      "save": "Salvar o projeto"
+    }
   }
 }

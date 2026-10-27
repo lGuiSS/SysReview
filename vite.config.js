@@ -5,6 +5,14 @@ export default defineConfig({
     react(),
   ],
    server: {
-    host: 'localhost'
+    host: 'localhost',
+    // Proxy de desenvolvimento para a API do Jev (TypeSafe), evitando CORS no navegador
+    proxy: {
+      '/typesafe': {
+        target: 'https://api.typesafe.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/typesafe/, ''),
+      },
+    },
   }
 })
