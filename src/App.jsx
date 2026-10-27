@@ -39,6 +39,7 @@ import {
 
 import countryPatternsData from './countryPatterns/countryPatterns_v3.json';
 import ExcelJS from "exceljs";
+import { Analytics } from '@vercel/analytics/react';
 
 // Hook personalizado para gerenciar o tema
 const useTheme = () => {
@@ -414,7 +415,7 @@ const Overlay = ({ children, footer, onClose }) => {
     setTimeout(onClose, 300);
   }, [onClose]);
 
-  // ── Drag-to-close — apenas no handle ────────────────────────────────────
+  // ── Drag-to-close — apenas no handle ─────���──────────────────────────────
   const onHandleTouchStart = (e) => {
     dragStartY.current = e.touches[0].clientY;
     dragActive.current = false;
@@ -5150,6 +5151,7 @@ const SystematicReviewTool = () => {
           }}
         />
 
+        <Analytics />
       </div>
     </div>
   );
