@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react'
 import { Search, Filter, ChartArea, Download, Table, Upload, CheckCircle, Check, XCircle, BookCopy, List, Clock, BarChart3, FileText, Database, RefreshCw, Settings, Sun, Moon, Bell, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Eye, PlusCircle, X, CopyX, CopyCheck, HeartHandshake, Languages, Save, ListChecks, Info, GraduationCap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SvgIcon } from './icons/SysReviewIcon.jsx';
+import { Analytics } from '@vercel/analytics/react';
 
 import ArticleModal from "./components/ArticleModal.jsx"
 
@@ -414,7 +415,7 @@ const Overlay = ({ children, footer, onClose }) => {
     setTimeout(onClose, 300);
   }, [onClose]);
 
-  // ── Drag-to-close — apenas no handle ────────────────────────────────────
+  // ── Drag-to-close — apenas no handle ─────���──────────────────────────────
   const onHandleTouchStart = (e) => {
     dragStartY.current = e.touches[0].clientY;
     dragActive.current = false;
@@ -5151,6 +5152,7 @@ const SystematicReviewTool = () => {
         />
 
       </div>
+      <Analytics />
     </div>
   );
 };
