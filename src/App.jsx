@@ -877,6 +877,88 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
   );
 };
 
+// Cores por tipo de critério; classes literais para o Tailwind encontrá-las
+const CRITERIA_TONES = {
+  green: {
+    chip: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
+    count: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
+    ring: 'focus-visible:ring-green-500',
+    add: 'text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20',
+  },
+  red: {
+    chip: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
+    count: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
+    ring: 'focus-visible:ring-red-500',
+    add: 'text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20',
+  },
+  blue: {
+    chip: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
+    count: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
+    ring: 'focus-visible:ring-blue-500',
+    add: 'text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20',
+  },
+};
+
+// Lista editável de critérios (inclusão, exclusão, qualidade): código, texto e remover em cada linha
+const CriteriaList = ({ type, prefix, title, placeholder, addLabel, tone, criteria, onChange, onAdd, onRemove }) => {
+  const { t } = useTranslation();
+  const colors = CRITERIA_TONES[tone];
+  const headingId = `${type}-heading`;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <h3 id={headingId} className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300">{title}</h3>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums ${colors.count}`}>
+          {t('protocol.criteriaCount', { count: criteria.length })}
+        </span>
+      </div>
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+        <ul aria-labelledby={headingId} className="divide-y divide-gray-200 dark:divide-gray-700">
+          {criteria.map((criterion, index) => {
+            const code = `${prefix}${index + 1}`;
+            return (
+              <li key={index} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-stretch">
+                <span className="grid place-items-center px-3 border-r border-gray-200 dark:border-gray-700">
+                  <span className={`min-w-[2rem] px-1.5 py-0.5 rounded-md text-center text-xs font-bold tabular-nums ${colors.chip}`}>{code}</span>
+                </span>
+                <textarea
+                  aria-label={`${title} ${code}`}
+                  className={`auto-grow w-full px-3 py-2.5 border-none rounded-none bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 resize-none break-words focus:outline-none focus-visible:ring-2 focus-visible:ring-inset ${colors.ring}`}
+                  value={criterion.value}
+                  onChange={(e) => onChange(index, e.target.value)}
+                  placeholder={placeholder}
+                />
+                <span className="grid place-items-center px-2">
+                  <button
+                    type="button"
+                    aria-label={`${t('protocol.removeCriterion')} ${code}`}
+                    title={t('protocol.removeCriterion')}
+                    disabled={criteria.length === 1}
+                    onClick={() => onRemove(index)}
+                    className="grid place-items-center w-8 h-8 p-0 rounded-md border-none bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/70 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-50 dark:disabled:hover:bg-red-900/40"
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="border-t border-gray-200 dark:border-gray-700">
+          <button
+            type="button"
+            onClick={onAdd}
+            className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 border-none rounded-none bg-gray-50 dark:bg-gray-900/40 text-sm font-medium transition-colors duration-200 ${colors.add}`}
+          >
+            <PlusCircle size={16} aria-hidden="true" />
+            {addLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Componente para definição do protocolo
 const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
@@ -1152,143 +1234,43 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
         {/* Critérios */}
         <div className="space-y-3">
           <div className="space-y-3" data-tour="protocol-criteria">
-          <div>
-            <h3 className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('protocol.inclusionCriteria')}</h3>
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="overflow-hidden h-full">
-                <table className="table-fixed min-w-full h-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {protocol.inclusionCriteria.map((criteria, index) => (
-                      <tr key={index} className="transition-colors duration-200 h-full">
-                        <td className="w-16">
-                          <span className="px-4 py-2 text-gray-500 font-bold dark:text-gray-400 text-sm">{`I${index + 1}`}</span>
-
-                        </td>
-                        <td className="p-0 h-px w-full max-w-0">
-                          <textarea
-                            className="w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-green-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 resize-none text-sm break-all"
-                            value={criteria.value}
-                            onChange={(e) => handleCriteriaChange('inclusionCriteria', index, e.target.value, 'value')}
-                            placeholder={t('protocol.inclusionPlaceholder')}
-                          />
-                        </td>
-                        <td className="px-4 py-2 text-right whitespace-nowrap">
-                          <button aria-label={t('protocol.removeCriterion')}
-                            disabled={protocol.inclusionCriteria.length === 1}
-                            onClick={() => removeCriteria({ type: 'inclusionCriteria', index: index })}
-                            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors duration-200 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent disabled:hover:text-gray-500"
-                          >
-                            <XCircle size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className=" bg-gray-50 dark:bg-gray-900/50  rounded-bl-lg rounded-br-lg " >
-                <button
-                  onClick={() => addCriteria('inclusionCriteria', '', '', protocol.inclusionCriteria.length)}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 text-sm font-medium rounded-bl-lg rounded-br-lg rounded-tl-none rounded-tr-none transition-colors duration-200 flex items-center justify-center gap-2"
-                >
-                  <PlusCircle size={16} />
-                  {t('protocol.addInclusion')}
-                </button>
-              </div>
-            </div>
+          <CriteriaList
+            type="inclusionCriteria"
+            prefix="I"
+            title={t('protocol.inclusionCriteria')}
+            placeholder={t('protocol.inclusionExample')}
+            addLabel={t('protocol.addInclusion')}
+            tone="green"
+            criteria={protocol.inclusionCriteria}
+            onChange={(index, value) => handleCriteriaChange('inclusionCriteria', index, value, 'value')}
+            onAdd={() => addCriteria('inclusionCriteria', '', '', protocol.inclusionCriteria.length)}
+            onRemove={(index) => removeCriteria({ type: 'inclusionCriteria', index })}
+          />
+          <CriteriaList
+            type="exclusionCriteria"
+            prefix="E"
+            title={t('protocol.exclusionCriteria')}
+            placeholder={t('protocol.exclusionExample')}
+            addLabel={t('protocol.addExclusion')}
+            tone="red"
+            criteria={protocol.exclusionCriteria}
+            onChange={(index, value) => handleCriteriaChange('exclusionCriteria', index, value, 'value')}
+            onAdd={() => addCriteria('exclusionCriteria', '', '', protocol.exclusionCriteria.length)}
+            onRemove={(index) => removeCriteria({ type: 'exclusionCriteria', index })}
+          />
           </div>
-          <div>
-            <h3 className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('protocol.exclusionCriteria')}</h3>
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="overflow-hidden h-full">
-                <table className="table-fixed min-w-full h-full divide-y divide-gray-200 dark:divide-gray-700">
-
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {protocol.exclusionCriteria.map((criteria, index) => (
-                      <tr key={index} className="transition-colors duration-200 h-full">
-                        <td className="w-16">
-                          <span className="px-4 py-2 text-gray-500 font-bold dark:text-gray-400">{`E${index + 1}`}</span>
-
-                        </td>
-                        <td className="p-0 h-px w-full max-w-0">
-                          <textarea
-                            className="w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 resize-none text-sm break-all"
-                            value={criteria.value}
-                            onChange={(e) => handleCriteriaChange('exclusionCriteria', index, e.target.value, 'value')}
-                            placeholder={t('protocol.exclusionPlaceholder')}
-                          />
-                        </td>
-                        <td className="px-4 py-2 text-right whitespace-nowrap">
-                          <button aria-label={t('protocol.removeCriterion')}
-                            disabled={protocol.exclusionCriteria.length === 1}
-                            onClick={() => removeCriteria({ type: 'exclusionCriteria', index: index })}
-                            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors duration-200 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent disabled:hover:text-gray-500"
-                          >
-                            <XCircle size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className=" bg-gray-50 dark:bg-gray-900/50  rounded-bl-lg rounded-br-lg " >
-                <button
-                  onClick={() => addCriteria('exclusionCriteria', '', '', protocol.exclusionCriteria.length)}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm font-medium rounded-bl-lg rounded-br-lg rounded-tl-none rounded-tr-none transition-colors duration-200 flex items-center justify-center gap-2"
-                >
-                  <PlusCircle size={16} />
-                  {t('protocol.addExclusion')}
-                </button>
-              </div>
-            </div>
-          </div>
-          </div>
-          <div>
-            <h3 className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('protocol.qualityCriteria')}</h3>
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="overflow-hidden h-full">
-                <table className="table-fixed min-w-full h-full divide-y divide-gray-200 dark:divide-gray-700">
-
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {protocol.qualityCriteria.map((criteria, index) => (
-                      <tr key={index} className="transition-colors duration-200 h-full">
-                        <td className="w-16">
-                          <span className="px-4 py-2 text-gray-500 font-bold dark:text-gray-400 text-sm">{`Q${index + 1}`}</span>
-                        </td>
-                        <td className="p-0 h-px w-full max-w-0">
-                          <textarea
-                            className="w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 resize-none text-sm break-all"
-                            value={criteria.value}
-                            onChange={(e) => handleCriteriaChange('qualityCriteria', index, e.target.value, 'value')}
-                            placeholder={t('protocol.qualityPlaceholder')}
-                          />
-                        </td>
-                        <td className="px-4 py-2 text-right whitespace-nowrap">
-                          <button aria-label={t('protocol.removeCriterion')}
-                            disabled={protocol.qualityCriteria.length === 1}
-                            onClick={() => removeCriteria({ type: 'qualityCriteria', index: index })}
-                            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors duration-200 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent disabled:hover:text-gray-500"
-                          >
-                            <XCircle size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className=" bg-gray-50 dark:bg-gray-900/50  rounded-bl-lg rounded-br-lg " >
-                <button
-                  onClick={() => addCriteria('qualityCriteria', '', '', protocol.qualityCriteria.length)}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium rounded-bl-lg rounded-br-lg rounded-tl-none rounded-tr-none transition-colors duration-200 flex items-center justify-center gap-2"
-                >
-                  <PlusCircle size={16} />
-                  {t('protocol.addQuality')}
-                </button>
-              </div>
-            </div>
-          </div>
+          <CriteriaList
+            type="qualityCriteria"
+            prefix="Q"
+            title={t('protocol.qualityCriteria')}
+            placeholder={t('protocol.qualityExample')}
+            addLabel={t('protocol.addQuality')}
+            tone="blue"
+            criteria={protocol.qualityCriteria}
+            onChange={(index, value) => handleCriteriaChange('qualityCriteria', index, value, 'value')}
+            onAdd={() => addCriteria('qualityCriteria', '', '', protocol.qualityCriteria.length)}
+            onRemove={(index) => removeCriteria({ type: 'qualityCriteria', index })}
+          />
           <div>
             <h3 className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
               {t('protocol.extractionCriteria')}
@@ -2722,7 +2704,9 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
     // Aplicar filtro de status
     if (selectedStatusFilter.startsWith('suggest-')) {
       const wanted = selectedStatusFilter.slice('suggest-'.length);
-      filtered = filtered.filter(article => aiReviewById.get(article.id)?.group === wanted);
+      const statusField = getStatusField(currentFilter);
+      filtered = filtered.filter(article => aiReviewById.get(article.id)?.group === wanted
+        && (wanted !== 'review' || article[statusField] === 'pending'));
     } else if (selectedStatusFilter !== 'all') {
       const statusField = getStatusField(currentFilter);
       filtered = filtered.filter(article => article[statusField] === selectedStatusFilter);
@@ -2887,8 +2871,16 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
     return sectionArticles.filter(a => a[statusField] === 'pending');
   }, [sectionArticles, assistStage]);
 
+  // Sugestões já gravadas no projeto podem ser vistas e aplicadas sem IA configurada neste navegador;
+  // só avaliar artigos exige a IA (assistEnabled)
+  const hasStageSuggestions = useMemo(
+    () => !!assistStage && sectionArticles.some(a => a.aiSuggestions?.[assistStage]),
+    [sectionArticles, assistStage]
+  );
+  const showAiTools = assistEnabled || hasStageSuggestions;
+
   const applyPreview = useMemo(() => {
-    if (!assistEnabled) return null;
+    if (!showAiTools) return null;
     const suggestionOf = (a) => withCurrentRules(a.aiSuggestions?.[assistStage] ?? null, protocol, assistStage);
     const applicable = pendingInSection.filter(a => applicableSuggestion(a, protocol, assistStage));
     const include = applicable.filter(a => suggestionOf(a).decision === 'included').length;
@@ -2898,7 +2890,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
       exclude: applicable.length - include,
       remaining: pendingInSection.length - applicable.length,
     };
-  }, [assistEnabled, pendingInSection, protocol, assistStage]);
+  }, [showAiTools, pendingInSection, protocol, assistStage]);
 
   const applySuggestions = () => {
     onApplyAi(assistStage, applyPreview?.applicable || [], 'auto');
@@ -3053,16 +3045,18 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
             <ArticleStatusFilter value={selectedStatusFilter} onChange={e => setStatusFilter(e.target.value)} showAi={!!assistStage} />
           </div>
 
-          {assistEnabled && (
+          {showAiTools && (
             <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => onStartEvaluation({ articles: pendingInSection, protocol, stage: assistStage, settings: assistSettings, sectionTitle: getSectionTitle() })}
-                className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 whitespace-nowrap"
-                title={t('assist.evaluatePendingTitle')}
-              >
-                <ListChecks className="h-4 w-4" />
-                {t('assist.evaluatePending')}
-              </button>
+              {assistEnabled && (
+                <button
+                  onClick={() => onStartEvaluation({ articles: pendingInSection, protocol, stage: assistStage, settings: assistSettings, sectionTitle: getSectionTitle() })}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 whitespace-nowrap"
+                  title={t('assist.evaluatePendingTitle')}
+                >
+                  <ListChecks className="h-4 w-4" />
+                  {t('assist.evaluatePending')}
+                </button>
+              )}
               <button
                 onClick={() => setShowApplyModal(true)}
                 disabled={!applyPreview || applyPreview.applicable.length === 0}
@@ -3147,7 +3141,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                     : <ArrowUpDown className="h-3 w-3" />}
                 </button>
               </th>
-              {assistEnabled && (
+              {showAiTools && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
                   <button
                     onClick={() => handleSort('relevance')}
@@ -3217,7 +3211,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                       {article.score === null ? '-' : article.score}
                     </span>
                   </td>
-                  {assistEnabled && (
+                  {showAiTools && (
                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 tabular-nums">
                       {relevanceOf(currentSuggestion(article)) === null
                         ? '–'
@@ -3236,11 +3230,12 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                           status === 'duplicate' ? t('articles.statusDuplicate') :
                             t('articles.statusPending')}
                     </span>
-                    {assistEnabled && (
+                    {showAiTools && (
                       <SuggestionBadge suggestion={currentSuggestion(article)} stale={suggestionIsStale(article)} />
                     )}
                     </div>
-                    {assistStage && <AiReviewNotice state={aiReviewById.get(article.id)} />}
+                    {/* Revisão manual só faz sentido para quem ainda está pendente nesta etapa */}
+                    {assistStage && article[getStatusField(assistStage)] === 'pending' && <AiReviewNotice state={aiReviewById.get(article.id)} />}
                   </td>
                   <td className="px-1 py-4 text-sm font-medium">
                     <div className="flex gap-1.5 w-fit" data-tour={rowIndex === 0 ? 'article-actions' : undefined}>
@@ -4863,7 +4858,7 @@ const SystematicReviewTool = () => {
 
           {/* Navegação em etapas: as seis primeiras seções são uma sequência, com o andamento de cada uma */}
           <nav aria-label={t('nav.label')} className="flex flex-col lg:flex-row lg:items-stretch gap-2" data-tour="nav">
-            <ol ref={stepsListRef} className="flex flex-1 min-w-0 gap-1 overflow-x-auto overscroll-x-contain snap-x pb-1 -mb-1">
+            <ol ref={stepsListRef} className="relative flex flex-1 min-w-0 gap-1 overflow-x-auto overscroll-x-contain snap-x pb-1 -mb-1">
               {steps.map((step, index) => {
                 const Icon = step.icon;
                 const isDisabled = sectionsToCheck.includes(step.id) && articles.length === 0;
@@ -4878,7 +4873,7 @@ const SystematicReviewTool = () => {
                       title={isDisabled ? t('nav.importArticlesDisabled') : undefined}
                       className={`w-full h-full grid grid-cols-[auto_1fr] items-center gap-x-2 px-2.5 py-2 rounded-lg text-left border-none transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${isActive
                         ? 'bg-indigo-100 dark:bg-indigo-900/50'
-                        : 'bg-transparent enabled:hover:bg-gray-100 dark:enabled:hover:bg-gray-700/60'
+                        : 'bg-gray-100 dark:bg-gray-700/60 enabled:hover:bg-gray-200 dark:enabled:hover:bg-gray-700'
                         }`}
                     >
                       {/* O anel em volta do número enche conforme a fração decidida da etapa */}

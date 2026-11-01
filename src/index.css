@@ -63,16 +63,22 @@ html.dark {
   }
 }
 
+/* Campo de texto que cresce com o conteúdo; sem suporte, vale o rows do textarea */
+.auto-grow {
+  field-sizing: content;
+  min-height: 2.75rem;
+}
+
 /* Anel de progresso das etapas da navegação: --p vai de 0 a 1 */
 .step-ring {
   --step-fill: #22c55e;
-  --step-track: #e5e7eb;
+  --step-track: #d1d5db;
   background: conic-gradient(var(--step-fill) calc(var(--p, 0) * 1turn), var(--step-track) 0);
 }
 
 .dark .step-ring {
   --step-fill: #4ade80;
-  --step-track: #374151;
+  --step-track: #4b5563;
 }
 
 /* Etapa ativa: centro com o fundo da etapa, anel índigo sobre trilha índigo clara */

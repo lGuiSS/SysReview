@@ -71,6 +71,11 @@
     "final": "Final"
   },
   "protocol": {
+    "criteriaCount_one": "{{count}} critério",
+    "criteriaCount_other": "{{count}} critérios",
+    "inclusionExample": "Ex.: estudos publicados em periódicos revisados por pares",
+    "exclusionExample": "Ex.: estudos sem acesso ao texto completo",
+    "qualityExample": "Ex.: metodologia descrita com clareza",
     "yearStart": "Ano inicial",
     "yearEnd": "Ano final",
     "removeCriterion": "Remover critério",
