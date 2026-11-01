@@ -8,7 +8,11 @@ export function ChatgptConnection({ model, onModelChange, onConnectedChange, pro
   const [models, setModels] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // Só libera o login com o serviço local respondendo; sem ele a aba de OAuth abriria e fecharia na hora
+  const [serviceUp, setServiceUp] = useState(false);
   const catalogFor = useRef(null);
+  // O retorno do OAuth só aceita 127.0.0.1: em localhost o serviço recusa o login
+  const loopbackUrl = window.location.hostname === 'localhost' ? window.location.href.replace('//localhost', '//127.0.0.1') : null;
   useEffect(() => {
     let active = true;
     let loading = false;
@@ -18,6 +22,7 @@ export function ChatgptConnection({ model, onModelChange, onConnectedChange, pro
       try {
         const status = await chatgptRequest('status', { provider });
         if (!active) return;
+        setServiceUp(true);
         setConnection(status); onConnectedChange(status.connected);
         window.dispatchEvent(new CustomEvent('sysreview-ai-connection', { detail: { provider, connectionId: status.connectionId } }));
         setError(status.error || '');
@@ -27,6 +32,7 @@ export function ChatgptConnection({ model, onModelChange, onConnectedChange, pro
         } else if (!status.connected) { setModels([]); catalogFor.current = null; }
       } catch (e) {
         if (active) {
+          if (e.code === 'ai-service') setServiceUp(false);
           setError(e.code === 'ai-service' ? t('assist.chatgptService') : e.message); onConnectedChange(false);
           if (['ai-auth', 'connection-changed'].includes(e.code)) {
             setConnection(previous => previous ? { ...previous, connected: false } : null);
@@ -71,10 +77,14 @@ export function ChatgptConnection({ model, onModelChange, onConnectedChange, pro
         <span className="truncate">{isConnected ? t('assist.chatgptConnected', { email: connection.email || provider }) : t('assist.aiDisconnected', { provider: 'ChatGPT' })}</span>
       </p>
       <div className="flex flex-wrap gap-2">
-        {!isConnected && <button type="button" onClick={connect} disabled={busy || connection?.configured === false} className={`${buttonCls} bg-indigo-600 hover:bg-indigo-700 text-white dark:bg-indigo-500 dark:hover:bg-indigo-600`}>{t('assist.chatgptContinue')}</button>}
+        {!isConnected && <button type="button" onClick={connect} disabled={busy || !serviceUp || !!loopbackUrl || connection?.configured === false} className={`${buttonCls} bg-indigo-600 hover:bg-indigo-700 text-white dark:bg-indigo-500 dark:hover:bg-indigo-600`}>{t('assist.chatgptContinue')}</button>}
         {isConnected && <button type="button" onClick={disconnect} disabled={busy} className={`${buttonCls} bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200`}>{t('assist.chatgptDisconnect')}</button>}
       </div>
     </div>
+    {loopbackUrl && <p role="status" className="rounded-lg px-3 py-2.5 text-indigo-800 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-900/30">
+      {t('assist.chatgptUseLoopback')}{' '}
+      <a href={loopbackUrl} className="font-medium underline">{loopbackUrl}</a>
+    </p>}
     <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">{t('assist.model')}
       <select value={model || ''} onChange={e => onModelChange(e.target.value)} className="mt-1.5 w-full px-3 py-2 text-sm font-normal rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
         <option value="">{t('assist.chatgptChooseModel')}</option>

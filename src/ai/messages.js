@@ -1,6 +1,7 @@
 // messages.js - Textos de interface derivados das sugestões e erros do Jev
 
 import { suggestionProbability } from './screening.js';
+import { isLocalAiHost } from './chatgptClient.js';
 
 export const DECISION_LABEL_KEY = {
   included: 'assist.suggestInclude',
@@ -25,15 +26,16 @@ export const jevErrorMessage = (t, error) => {
     case 'permission': return t('assist.errorPermission');
     case 'effort': return t('assist.effortInvalid');
     case 'no-criteria': return t('assist.noCriteria');
-    case 'ai-service': return t('assist.chatgptService');
+    case 'ai-service': return t(isLocalAiHost() ? 'assist.chatgptService' : 'assist.chatgptLocalOnly');
     case 'connection-changed':
     case 'ai-auth': return t('assist.aiSignInAgain');
-    case 'chatgpt-service': return t('assist.chatgptService');
+    case 'chatgpt-service': return t(isLocalAiHost() ? 'assist.chatgptService' : 'assist.chatgptLocalOnly');
     case 'chatgpt-auth': return t('assist.chatgptSignInAgain');
     case 'network': return t('assist.errorNetwork');
     case 'auth': return t('assist.errorAuth');
     case 'rate-limit': return t('assist.errorRateLimit');
     case 'no-key': return t('assist.errorNoKey');
+    case 'quota': return t('assist.errorQuota');
     default: return t('assist.errorApi', { error: error?.message || (error?.httpStatus ? `HTTP ${error.httpStatus}` : error?.code || String(error)) });
   }
 };

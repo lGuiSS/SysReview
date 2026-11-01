@@ -22,7 +22,7 @@ export function validateIdentity(token, keys, { clientId, nonce, now = Date.now(
   return claims;
 }
 
-export { validateAnswers } from '../src/ai/answerContract.js';
+export { validateAnswers, parseScreeningResponse } from '../src/ai/answerContract.js';
 
 const responseError = (message, reason, code = 'response-invalid') =>
   Object.assign(new Error(message), { code, status: 422, reason });
@@ -75,14 +75,4 @@ export async function readCompletedResponse(body) {
   let text = (final?.item.content || []).filter(c => c.type === 'output_text').map(c => c.text || '').join('');
   if (!text && final) text = [...parts.values()].filter(p => p.index === final.index).sort((a, b) => a.content - b.content).map(p => p.text).join('');
   return { text, model: completed.model, usage: completed.usage, effectiveEffort: completed.reasoning?.effort };
-}
-
-export function parseScreeningResponse(text) {
-  if (typeof text !== 'string' || !text.trim()) throw responseError('Response contained no answer text', 'empty-output');
-  let json = text.trim();
-  // Only unwrap a complete JSON code fence. Never extract fragments or repair values.
-  const fenced = /^```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```$/i.exec(json);
-  if (fenced) json = fenced[1].trim();
-  try { return JSON.parse(json); }
-  catch { throw responseError('Response text is not valid JSON', 'json-syntax'); }
 }

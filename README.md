@@ -179,6 +179,16 @@ edições posteriores. Artigos removidos ou com outra decisão de tratamento
 são ignorados. Projetos antigos abrem normalmente; exclusões antigas não
 possuem histórico para desfazer.
 
+## OpenAI com chave de API na seleção assistida
+
+Funciona no site publicado e localmente, sem serviço adicional. Nas configurações
+de IA, selecione **OpenAI**, cole uma chave criada em
+[platform.openai.com/api-keys](https://platform.openai.com/api-keys) e escolha um
+dos modelos listados pela sua conta. As chamadas vão do navegador direto para a
+API da OpenAI, com os mesmos critérios, contrato de resposta e regras de decisão
+do ChatGPT. A chave fica apenas no navegador (nunca no `.srp`); o uso é cobrado
+na conta da OpenAI, não no plano do ChatGPT.
+
 ## ChatGPT com OAuth na seleção assistida
 
 Requer Node.js 22 ou superior para o serviço local. O JEV continua disponível.

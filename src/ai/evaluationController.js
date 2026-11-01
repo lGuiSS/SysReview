@@ -71,7 +71,7 @@ export function createEvaluationController({ onResults, onUsage, evaluate = eval
     current = job; publish(job);
     try {
       validateEffort(job.provider, job.model, job.effort);
-      if (job.provider !== 'jev') {
+      if (job.provider === 'chatgpt') {
         const status = await connection(job.provider, job.controller.signal);
         if (!live(job)) return;
         if (!status.connected || !status.connectionId) throw Object.assign(new Error('Sign in to AI provider'), { code: 'ai-auth' });
@@ -131,7 +131,7 @@ export function createEvaluationController({ onResults, onUsage, evaluate = eval
               job.error = { ...item.diagnostic, code: 'response-format-repeated' }; stop(); return;
             }
           } else job.responseFormatFailures = 0;
-          if (['ai-auth', 'ai-service', 'connection-changed', 'auth', 'no-key', 'effort', 'provider-unsupported', 'rate-limit', 'permission'].includes(error.code)) {
+          if (['ai-auth', 'ai-service', 'connection-changed', 'auth', 'no-key', 'quota', 'effort', 'provider-unsupported', 'rate-limit', 'permission'].includes(error.code)) {
             job.error = item.diagnostic; stop(); return;
           }
         }
@@ -156,7 +156,7 @@ export function createEvaluationController({ onResults, onUsage, evaluate = eval
     current = job; publish(job);
     try {
       validateEffort(job.provider, job.model, job.effort);
-      if (job.provider !== 'jev') {
+      if (job.provider === 'chatgpt') {
         const status = await connection(job.provider, job.controller.signal);
         if (!live(job)) return;
         if (!status.connected || !status.connectionId) throw Object.assign(new Error('Sign in to AI provider'), { code: 'ai-auth' });

@@ -61,3 +61,16 @@ If the supplied fields do not establish whether a criterion holds, use status "i
 Do not infer that a subject/method is absent just because the abstract does not discuss it. Distinguish evidence of absence from missing information, especially for exclusion criteria that negate inclusion criteria.
 Access to full text, availability, paywalls and retrieval failures cannot be inferred from a title, abstract, publication year or copyright statement. If no explicit access verification is provided in the study, abstain on such criteria. Do not assume conference publication is the same as proceedings as a whole unless the criterion and supplied publication type support that interpretation.
 Do not invent facts, access attempts or evidence. A quote must be copied from the supplied study, never from the question.`;
+
+const responseError = (message, reason, code = 'response-invalid') =>
+  Object.assign(new Error(message), { code, status: 422, reason });
+
+export function parseScreeningResponse(text) {
+  if (typeof text !== 'string' || !text.trim()) throw responseError('Response contained no answer text', 'empty-output');
+  let json = text.trim();
+  // Only unwrap a complete JSON code fence. Never extract fragments or repair values.
+  const fenced = /^```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```$/i.exec(json);
+  if (fenced) json = fenced[1].trim();
+  try { return JSON.parse(json); }
+  catch { throw responseError('Response text is not valid JSON', 'json-syntax'); }
+}

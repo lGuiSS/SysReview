@@ -21,7 +21,7 @@ export const loadJevSettings = () => {
       concurrency: DEFAULT_CONCURRENCY,
       longContext: false,
       ...parsed,
-      provider: parsed.provider === 'chatgpt' ? 'chatgpt' : 'jev',
+      provider: ['chatgpt', 'openai'].includes(parsed.provider) ? parsed.provider : 'jev',
     };
   } catch {
     return { apiKey: '', baseUrl: '', concurrency: DEFAULT_CONCURRENCY, longContext: false };

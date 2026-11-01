@@ -32,6 +32,7 @@ import { aiReviewState } from "./ai/review.js";
 import { SuggestionBadge, AiReviewNotice } from "./components/SuggestionPanel.jsx";
 import { jevErrorMessage, suggestionTooltip } from "./ai/messages.js";
 import { loadJevSettings, saveJevSettings } from "./ai/jevClient.js";
+import { isLocalAiHost } from "./ai/chatgptClient.js";
 import { STAGES, getAiConfig, isSuggestionStale, relevanceOf, suggestionProbability, autoRuleSummary, withCurrentRules, hasActionableDecision } from "./ai/screening.js";
 
 import {
@@ -2584,6 +2585,10 @@ const Filter3Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
 // Componente melhorado para lista de artigos
 // Texto completo dos artigos (Filtros 2 e 3) — ainda não disponível
 
+// Provedor de IA pronto para avaliar: ChatGPT só com o serviço local; JEV e OpenAI com a respectiva chave
+const assistReady = (settings) => settings.provider === 'chatgpt' ? isLocalAiHost()
+  : settings.provider === 'openai' ? !!settings.openaiKey : !!settings.apiKey;
+
 const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assistSettings = null, onStartEvaluation, onApplyAi, onDetailsOpenChange, onOpenRules }) => {
   const { t } = useTranslation();
   // Triagem assistida: só nos filtros 1-3 e com chave configurada
@@ -5029,7 +5034,7 @@ const SystematicReviewTool = () => {
             currentFilter={currentSection}
             onUpdateStatus={handleUpdateStatus}
             protocol={protocol}
-            assistSettings={jevSettings.provider === 'chatgpt' || jevSettings.apiKey ? jevSettings : null}
+            assistSettings={assistReady(jevSettings) ? jevSettings : null}
             onStartEvaluation={onStartEvaluation}
             onApplyAi={onApplyAi}
             onOpenRules={openAiRules}

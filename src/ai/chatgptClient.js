@@ -33,3 +33,5 @@ export async function chatgptRequest(path, { body, signal, provider = 'chatgpt',
 }
 export const evaluateChatgpt = ({ state, questions, model, signal, effort = 'default', connectionId }) =>
   chatgptRequest('evaluate', { body: { state, questions, model, effort, connectionId }, signal });
+// O ChatGPT (OAuth) depende do serviço local (npm run chatgpt): só funciona com o app aberto no próprio computador
+export const isLocalAiHost = () => typeof location !== 'undefined' && ['127.0.0.1', 'localhost'].includes(location.hostname);

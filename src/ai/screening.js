@@ -1,4 +1,5 @@
 import { evaluateChatgpt } from './chatgptClient.js';
+import { evaluateOpenai } from './openaiClient.js';
 import { validateAnswers } from './answerContract.js';
 import { ADAPTER_VERSION, providerModel, selectedEffort, validateEffort, requiresReevaluation } from './modelCapabilities.js';
 // screening.js - Converte critérios do protocolo em perguntas do Jev e
@@ -339,8 +340,8 @@ export const evaluateArticle = async ({ article, protocol, stage, settings, full
   }
 
   const state = buildState(article, stage, fullText);
-  const response = await (provider === 'chatgpt' ? evaluateChatgpt : evaluate)({
-    apiKey: settings.apiKey,
+  const response = await (provider === 'chatgpt' ? evaluateChatgpt : provider === 'openai' ? evaluateOpenai : evaluate)({
+    apiKey: provider === 'openai' ? settings.openaiKey : settings.apiKey,
     baseUrl: settings.baseUrl,
     model: base.model,
     state,

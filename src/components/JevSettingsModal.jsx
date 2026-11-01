@@ -1,6 +1,6 @@
 import { ChatgptConnection } from "./ChatgptConnection.jsx";
-import { chatgptRequest } from "../ai/chatgptClient.js";
-import { useState } from "react";
+import { chatgptRequest, isLocalAiHost } from "../ai/chatgptClient.js";
+import { useEffect, useState } from "react";
 import { DialogPanel } from "./Dialog.jsx";
 import { OpenAiIcon, TypesafeIcon } from "./AiProviderIcons.jsx";
 import { useFormat } from "../i18n/format.js";
@@ -10,6 +10,7 @@ import { evaluate, DEFAULT_MODEL, DEFAULT_CONCURRENCY, PRICE_PER_MTOK_USD } from
 import { getAiConfig } from "../ai/screening.js";
 import { jevErrorMessage } from "../ai/messages.js";
 import { effortOptions, selectedEffort } from '../ai/modelCapabilities.js';
+import { evaluateOpenai, listOpenaiModels } from "../ai/openaiClient.js";
 
 const inputCls = `w-full px-3 py-2 text-sm rounded-lg border transition-colors
   bg-white dark:bg-gray-700 text-gray-800 dark:text-white
@@ -22,16 +23,20 @@ const sectionTitleCls = "text-xs font-semibold uppercase tracking-wide text-gray
 
 const PROVIDERS = [
   { id: 'jev', name: 'JEV', detail: 'TypeSafe', icon: <TypesafeIcon className="h-5 w-5 shrink-0" /> },
+  { id: 'openai', name: 'OpenAI', detail: 'API', icon: <OpenAiIcon className="h-5 w-5 shrink-0" /> },
   { id: 'chatgpt', name: 'ChatGPT', detail: 'OAuth', icon: <OpenAiIcon className="h-5 w-5 shrink-0" /> },
 ];
 
 // Botões agrupados (rádios nativos: setas do teclado alternam o provedor)
-function ProviderPicker({ label, value, onChange }) {
+// Classes literais para o Tailwind gerar: uma coluna por provedor a partir de sm
+const PICKER_COLS = { 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3' };
+
+function ProviderPicker({ label, value, onChange, providers }) {
   return (
     <fieldset>
       <legend className={labelCls}>{label}</legend>
-      <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-gray-900/60">
-        {PROVIDERS.map(({ id, name, detail, icon }) => {
+      <div className={`grid grid-cols-1 ${PICKER_COLS[providers.length] || ''} gap-1 p-1 rounded-xl bg-gray-100 dark:bg-gray-900/60`}>
+        {providers.map(({ id, name, detail, icon }) => {
           const active = value === id;
           return (
             <label key={id} translate="no"
@@ -108,16 +113,22 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onCl
   const { t } = useTranslation();
   const fmt = useFormat();
   const config = getAiConfig({ aiConfig });
-  const [provider, setProvider] = useState(settings.provider === 'chatgpt' ? 'chatgpt' : 'jev');
+  // O login do ChatGPT (OAuth) depende do serviço local: fora do computador do usuário a opção nem aparece
+  const chatgptHere = isLocalAiHost();
+  const providers = chatgptHere ? PROVIDERS : PROVIDERS.filter(p => p.id !== 'chatgpt');
+  const [provider, setProvider] = useState(providers.some(p => p.id === settings.provider) ? settings.provider : 'jev');
   const [chatgptModel, setChatgptModel] = useState(settings.chatgptModel || '');
   const [effortByModel, setEffortByModel] = useState(settings.effortByModel || {});
   const [chatgptConnected, setChatgptConnected] = useState(false);
   const [apiKey, setApiKey] = useState(settings.apiKey || '');
+  const [openaiKey, setOpenaiKey] = useState(settings.openaiKey || '');
+  const [openaiModel, setOpenaiModel] = useState(settings.openaiModel || '');
+  const [openaiModels, setOpenaiModels] = useState({ status: 'idle', list: [], error: '' }); // status: idle | loading | ok | error
   const [baseUrl, setBaseUrl] = useState(settings.baseUrl || '');
   const [concurrency, setConcurrency] = useState(settings.concurrency || DEFAULT_CONCURRENCY);
   const [longContext, setLongContext] = useState(!!settings.longContext);
   const [model, setModel] = useState(config.model || DEFAULT_MODEL);
-  const activeModel = provider === 'chatgpt' ? chatgptModel : model;
+  const activeModel = provider === 'chatgpt' ? chatgptModel : provider === 'openai' ? openaiModel : model;
   const effort = selectedEffort({ provider, effortByModel }, activeModel);
   const efforts = effortOptions(provider, activeModel);
   const effortValid = efforts.includes(effort);
@@ -141,12 +152,37 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onCl
   const clampConcurrency = (v) => Math.min(16, Math.max(1, Math.round(Number(v)) || DEFAULT_CONCURRENCY));
   const clampQuality = (v) => Math.min(2, Math.max(0, Number(v) || 0));
 
+  // Lista os modelos da conta OpenAI quando a chave muda (com espera para não consultar a cada tecla)
+  const trimmedOpenaiKey = openaiKey.trim();
+  useEffect(() => {
+    if (provider !== 'openai' || !trimmedOpenaiKey) { setOpenaiModels({ status: 'idle', list: [], error: '' }); return; }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setOpenaiModels(prev => ({ ...prev, status: 'loading', error: '' }));
+      try {
+        const list = await listOpenaiModels({ apiKey: trimmedOpenaiKey, signal: controller.signal });
+        setOpenaiModels({ status: 'ok', list, error: '' });
+      } catch (error) {
+        if (error?.name !== 'AbortError') setOpenaiModels({ status: 'error', list: [], error: jevErrorMessage(t, error) });
+      }
+    }, 500);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [provider, trimmedOpenaiKey, t]);
+
+  const pingQuestion = { ping: { type: 'noul', instructions: 'Is the title nonempty?' } };
+  const testDisabled = provider === 'chatgpt' ? !connected || !activeModel || !effortValid
+    : provider === 'openai' ? !trimmedOpenaiKey || !openaiModel || !effortValid : !apiKey.trim();
+  const saveDisabled = provider === 'chatgpt' ? !connected || !activeModel || !effortValid
+    : provider === 'openai' ? !trimmedOpenaiKey || !openaiModel || !effortValid : false;
+
   const handleTest = async () => {
     setTestState({ status: 'testing' });
     try {
-      const status = provider !== 'jev' ? await chatgptRequest('status', { provider }) : null;
-      const response = provider !== 'jev' ? await chatgptRequest('evaluate', { provider, body: { model: activeModel, effort, connectionId: status.connectionId,
-        state: { title: 'Connection test' }, questions: { ping: { type: 'noul', instructions: 'Is the title nonempty?' } } } }) : await evaluate({
+      const status = provider === 'chatgpt' ? await chatgptRequest('status', { provider }) : null;
+      const response = provider === 'chatgpt' ? await chatgptRequest('evaluate', { provider, body: { model: activeModel, effort, connectionId: status.connectionId,
+        state: { title: 'Connection test' }, questions: pingQuestion } })
+        : provider === 'openai' ? await evaluateOpenai({ apiKey: trimmedOpenaiKey, model: openaiModel, effort, state: { title: 'Connection test' }, questions: pingQuestion })
+        : await evaluate({
         apiKey: apiKey.trim(),
         baseUrl: baseUrl.trim(),
         model: model.trim() || DEFAULT_MODEL,
@@ -154,7 +190,7 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onCl
         questions: { ping: { type: 'noul', instructions: 'Is `title` a non-empty text?' } },
         maxRetries: 0,
       });
-      setTestState({ status: 'ok', message: t('assist.testOk', { model: response.model || model }) });
+      setTestState({ status: 'ok', message: t('assist.testOk', { model: response.model || activeModel }) });
     } catch (error) {
       setTestState({ status: 'error', message: jevErrorMessage(t, error) });
     }
@@ -172,6 +208,7 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onCl
     };
     if (rulesOnly) { onSaveRules(nextConfig); return; }
     onSave({ provider, chatgptModel, effortByModel, apiKey: apiKey.trim(), baseUrl: baseUrl.trim(),
+      openaiKey: trimmedOpenaiKey, openaiModel,
       concurrency: clampConcurrency(concurrency), longContext },
     { ...nextConfig, model: model.trim() || DEFAULT_MODEL });
   };
@@ -204,9 +241,60 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onCl
           {rulesOnly && <p className="pb-5 text-sm text-gray-600 dark:text-gray-300">{t('assist.rulesNoReevaluation')}</p>}
           {!rulesOnly && <>
           <Section>
-            <p className="text-sm text-gray-600 dark:text-gray-300">{t('assist.intro')}</p>
-            <ProviderPicker label={t('assist.provider')} value={provider} onChange={(id) => { setProvider(id); setTestState(null); }} />
+            <p className="text-sm text-gray-600 dark:text-gray-300">{t(chatgptHere ? 'assist.intro' : 'assist.introWeb')}</p>
+            <ProviderPicker label={t('assist.provider')} value={provider} providers={providers} onChange={(id) => { setProvider(id); setTestState(null); }} />
             {provider === 'chatgpt' && <ChatgptConnection model={chatgptModel} onModelChange={setChatgptModel} onConnectedChange={setChatgptConnected} />}
+            {provider === 'openai' && <>
+            <div>
+              <label htmlFor="openai-api-key" className={labelCls}>{t('assist.openaiKey')}</label>
+              <div className="flex gap-2">
+                <input id="openai-api-key"
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={openaiKey}
+                  onChange={(e) => { setOpenaiKey(e.target.value); setTestState(null); }}
+                  placeholder={t('assist.apiKeyPlaceholder')}
+                  className={inputCls}
+                />
+                {openaiKey && (
+                  <button
+                    onClick={() => { setOpenaiKey(''); setTestState(null); }}
+                    className="px-3 text-sm rounded-lg border-none bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 whitespace-nowrap transition-colors"
+                  >
+                    {t('assist.removeKey')}
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap justify-between gap-2 mt-1.5">
+                <p className={hintCls}>{t('assist.openaiKeyHint')}</p>
+                <a
+                  href="https://platform.openai.com/api-keys"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  <Link size={12} aria-hidden="true" />
+                  {t('assist.getKey')}
+                </a>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="openai-model" className={labelCls}>{t('assist.model')}</label>
+              <select id="openai-model" value={openaiModel} disabled={!trimmedOpenaiKey}
+                onChange={(e) => { setOpenaiModel(e.target.value); setTestState(null); }}
+                className={`${inputCls} disabled:opacity-50`}>
+                <option value="">{t('assist.chatgptChooseModel')}</option>
+                {openaiModel && !openaiModels.list.includes(openaiModel) && <option value={openaiModel}>{openaiModel}</option>}
+                {openaiModels.list.map(id => <option key={id} value={id}>{id}</option>)}
+              </select>
+              {openaiModels.status === 'error'
+                ? <p role="alert" className="mt-1.5 text-sm text-red-600 dark:text-red-400">{openaiModels.error}</p>
+                : <p role="status" className={`${hintCls} mt-1.5`}>
+                  {openaiModels.status === 'loading' ? t('assist.openaiModelsLoading') : !trimmedOpenaiKey ? t('assist.openaiModelsHint') : null}
+                </p>}
+            </div>
+            </>}
             {provider === 'jev' && <>
             <div>
               <label htmlFor="jev-api-key" className={labelCls}>{t('assist.apiKey')}</label>
@@ -358,7 +446,7 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onCl
         <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-700">
           {!rulesOnly && <button
             onClick={handleTest}
-            disabled={(provider !== 'jev' ? !connected || !activeModel || !effortValid : !apiKey.trim()) || testState?.status === 'testing'}
+            disabled={testDisabled || testState?.status === 'testing'}
             className="flex-1 px-3 py-2 text-sm font-medium rounded-lg border-none
               bg-gray-100 hover:bg-gray-200 text-gray-700
               dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200
@@ -378,7 +466,7 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onCl
           </button>
           <button
             onClick={handleSave}
-            disabled={!rulesOnly && provider !== 'jev' && (!connected || !activeModel || !effortValid)}
+            disabled={!rulesOnly && saveDisabled}
             className="flex-1 px-3 py-2 text-sm font-medium rounded-lg border-none
               bg-indigo-600 hover:bg-indigo-700 text-white
               dark:bg-indigo-500 dark:hover:bg-indigo-600

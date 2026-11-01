@@ -1643,6 +1643,16 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
       fill="white" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight="600">
       {fmt.pct(percent)}</text>;
   };
+  // A legenda da tela é HTML e não sai na imagem: na exportação ela é desenhada no SVG
+  // (prop legend do ExportableChart) e a pizza ocupa só a área acima dela
+  const classificationLegend = (data) => data.filter(i => i.value > 0)
+    .map(e => ({ text: `${pieLabels[e.name]}: ${e.value}`, color: pieColors[e.name] }));
+  const codedLegend = (data, colorAt) => data.map((e, i) => ({ text: `${e.id} (${e.value})`, color: colorAt(e, i) }));
+  const pieExportGeometry = (cfg) => {
+    if (!cfg.export) return {};
+    const h = cfg.height - (cfg.legendBottom || 0);
+    return { cx: cfg.width / 2, cy: h / 2, outerRadius: Math.max(10, Math.min(cfg.width, h) / 2 * 0.8) };
+  };
   const CustomLegend = ({ data }) => (
     <div className="flex justify-center flex-wrap gap-3 mt-2">
       {data.filter(i => i.value > 0).map((entry, i) => (
@@ -2021,7 +2031,7 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                 {filterTabs.filter(fk => filterSelected.has(fk)).map(fk => (
                   <ChartInstance key={fk} id={`filter-${fk}`} label={filterTabLabel(fk)}
                     chartRef={filterRefs[fk]} data={criterionsCount[fk]} openMenuId={openMenuId} onToggle={toggleMenu}>
-                    <ExportableChart ref={filterRefs[fk]}>
+                    <ExportableChart ref={filterRefs[fk]} legend={classificationLegend(criterionsCount[fk])}>
                       {(cfg) => (
                         <PieChart
                           width={cfg.width}
@@ -2029,10 +2039,10 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                           responsive={!cfg.export}
                           style={cfg.export ? undefined : { width: '100%', aspectRatio: 1, maxHeight: '50vh' }}>
                           <Pie data={criterionsCount[fk]} dataKey="value" label={renderCustomizedLabel}
-                            stroke="none" labelLine={false} isAnimationActive={false}>
+                            stroke="none" labelLine={false} isAnimationActive={false} {...pieExportGeometry(cfg)}>
                             {criterionsCount[fk].map((e, i) => <Cell key={i} fill={pieColors[e.name]} />)}
                           </Pie>
-                          <Legend verticalAlign="bottom" content={<CustomLegend data={criterionsCount[fk]} />} />
+                          {!cfg.export && <Legend verticalAlign="bottom" content={<CustomLegend data={criterionsCount[fk]} />} />}
                         </PieChart>
                       )}
                     </ExportableChart>
@@ -2056,7 +2066,7 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                       chartRef={criterionChartRefs[ctr]} data={data} openMenuId={openMenuId} onToggle={toggleMenu}>
                       {data.length === 0
                         ? <p className="text-xs text-gray-400 text-center py-6">{t('stats.noCriteria')}</p>
-                        : <ExportableChart ref={criterionChartRefs[ctr]}>
+                        : <ExportableChart ref={criterionChartRefs[ctr]} legend={codedLegend(data, (_, i) => cols[i % cols.length])}>
                           {(cfg) => (
                             <PieChart
                               width={cfg.width}
@@ -2064,11 +2074,11 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                               responsive={!cfg.export}
                               style={cfg.export ? undefined : { width: '100%', aspectRatio: 1, maxHeight: '50vh' }}>
                               <Pie data={data} dataKey="value" label={renderCriterionLabel}
-                                labelLine={false} stroke="none" isAnimationActive={false}>
+                                labelLine={false} stroke="none" isAnimationActive={false} {...pieExportGeometry(cfg)}>
                                 {data.map((_, i) => <Cell key={i} fill={cols[i % cols.length]} />)}
                               </Pie>
                               <Tooltip {...criterionTooltip} />
-                              <Legend verticalAlign="bottom" content={<CriterionLegend data={data} ctr={ctr} />} />
+                              {!cfg.export && <Legend verticalAlign="bottom" content={<CriterionLegend data={data} ctr={ctr} />} />}
                             </PieChart>
                           )}
                         </ExportableChart>
@@ -2113,7 +2123,8 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                           ? <p className="text-xs text-gray-400 text-center py-6">
                             {t('stats.noIncludedArticles')}
                           </p>
-                          : <ExportableChart ref={filterOriginRef[fk]}>
+                          : <ExportableChart ref={filterOriginRef[fk]}
+                            legend={codedLegend(data, (or, i) => getOriginColors(or.id)[i % getOriginColors(or.id).length])}>
                             {(cfg) => (
                               <PieChart
                                 width={cfg.width}
@@ -2128,6 +2139,7 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                                   labelLine={false}
                                   stroke="none"
                                   isAnimationActive={false}
+                                  {...pieExportGeometry(cfg)}
                                 >
                                   {data.map((or, i) => (
                                     <Cell
@@ -2137,10 +2149,10 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                                   ))}
                                 </Pie>
                                 <Tooltip {...criterionTooltip} />
-                                <Legend
+                                {!cfg.export && <Legend
                                   verticalAlign="bottom"
                                   content={<OriginLegend data={data} or="Total" />}
-                                />
+                                />}
                               </PieChart>
                             )}
                           </ExportableChart>
