@@ -378,7 +378,6 @@
     "protocolSheet": "Protocolo"
   },
   "stats": {
-    "similarityThreshold": "Limiar de similaridade",
     "xlsx": {
       "sheetNodes": "Nós",
       "sheetEdges": "Arestas",
@@ -522,6 +521,7 @@
     "rulesExplain": "Estes limites definem quais sugestões podem ser aplicadas juntas. Itens abaixo dos limites ou sem sugestão de incluir/excluir continuam para conferência. Critérios não verificados permanecem sinalizados e não bloqueiam o lote. Você confirma antes de aplicar.",
     "rulesNoReevaluation": "Ajuste os limites usando as avaliações já feitas, sem consultar a IA novamente. Ao salvar, as quantidades elegíveis serão atualizadas. Nenhuma decisão será aplicada agora.",
     "rulesTitle": "Regras para aplicar sugestões em lote",
+    "sectionPerformance": "Desempenho",
     "headerButton": "Seleção assistida por IA",
     "settingsTitle": "Seleção assistida por IA",
     "minimize": "Minimizar avaliação",

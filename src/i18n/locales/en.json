@@ -378,7 +378,6 @@
     "protocolSheet": "Protocol"
   },
   "stats": {
-    "similarityThreshold": "Similarity threshold",
     "xlsx": {
       "sheetNodes": "Nodes",
       "sheetEdges": "Edges",
@@ -522,6 +521,7 @@
     "rulesExplain": "These thresholds determine which suggestions can be applied together. Items below the thresholds or without an include/exclude suggestion remain for review. Unverified criteria stay flagged and do not block batch application. You confirm before applying.",
     "rulesNoReevaluation": "Adjust thresholds using existing assessments without querying AI again. Saving updates the eligible counts. No decision will be applied now.",
     "rulesTitle": "Rules for applying suggestions in batch",
+    "sectionPerformance": "Performance",
     "headerButton": "AI-assisted selection",
     "settingsTitle": "AI-assisted screening",
     "minimize": "Minimize evaluation",

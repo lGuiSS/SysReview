@@ -61,20 +61,27 @@ export function ChatgptConnection({ model, onModelChange, onConnectedChange, pro
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
   };
-  return <div className="space-y-3 text-sm text-gray-700 dark:text-gray-200">
-    <p>{t('assist.chatgptHint')}</p>
-    <p role="status">{connection?.connected ? t('assist.chatgptConnected', { email: connection.email || provider }) : t('assist.aiDisconnected', { provider: 'ChatGPT' })}</p>
-    <div className="flex flex-wrap gap-2">
-      <button type="button" onClick={connect} disabled={busy || connection?.configured === false} className="px-3 py-2 rounded-lg border border-gray-400 disabled:opacity-50">{t('assist.chatgptContinue')}</button>
-      {connection?.connected && <button type="button" onClick={disconnect} disabled={busy} className="px-3 py-2 rounded-lg border border-gray-400">{t('assist.chatgptDisconnect')}</button>}
+  const isConnected = !!connection?.connected;
+  const buttonCls = 'px-3 py-2 text-sm font-medium rounded-lg border-none transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+  return <div className="space-y-4 text-sm text-gray-700 dark:text-gray-200">
+    <p className="text-xs text-gray-500 dark:text-gray-400">{t('assist.chatgptHint')}</p>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2.5">
+      <p role="status" className="flex items-center gap-2 min-w-0">
+        <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-400 dark:bg-gray-500'}`} />
+        <span className="truncate">{isConnected ? t('assist.chatgptConnected', { email: connection.email || provider }) : t('assist.aiDisconnected', { provider: 'ChatGPT' })}</span>
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {!isConnected && <button type="button" onClick={connect} disabled={busy || connection?.configured === false} className={`${buttonCls} bg-indigo-600 hover:bg-indigo-700 text-white dark:bg-indigo-500 dark:hover:bg-indigo-600`}>{t('assist.chatgptContinue')}</button>}
+        {isConnected && <button type="button" onClick={disconnect} disabled={busy} className={`${buttonCls} bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200`}>{t('assist.chatgptDisconnect')}</button>}
+      </div>
     </div>
-    <label className="block">{t('assist.model')}
-      <select value={model || ''} onChange={e => onModelChange(e.target.value)} className="mt-1 w-full p-2 rounded-lg bg-white dark:bg-gray-700 border border-gray-400">
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">{t('assist.model')}
+      <select value={model || ''} onChange={e => onModelChange(e.target.value)} className="mt-1.5 w-full px-3 py-2 text-sm font-normal rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
         <option value="">{t('assist.chatgptChooseModel')}</option>
         {model && !models.some(m => m.slug === model) && <option value={model}>{model}</option>}
         {models.map(m => <option key={m.slug} value={m.slug}>{m.display_name}</option>)}
       </select>
     </label>
-    {error && <p role="alert" className="text-red-600 dark:text-red-300">{error}</p>}
+    {error && <p role="alert" className="rounded-lg px-3 py-2 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30">{error}</p>}
   </div>;
 }
