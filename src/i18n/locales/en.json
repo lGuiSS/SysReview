@@ -2,7 +2,8 @@
   "app": {
     "title": "SysReview",
     "unsaved": "Unsaved",
-    "saved": "Saved"
+    "saved": "Saved",
+    "lastSaved": "last saved at {{time}}"
   },
   "autosave": {
     "title": "Auto-save",

@@ -1797,7 +1797,7 @@ const ScoringSystemConfig = ({ scoringSystem, onUpdate, protocol, addCriteria, r
 // Bases aceitas na importação; as classes ficam literais para o Tailwind encontrá-las
 const IMPORT_SOURCES = [
   {
-    database: 'Scopus', id: 'scopus', accept: '.csv,.ris,.bib,.txt', upload: 'import.uploadScopus', format: 'import.formatBibtex', numberByDataId: true,
+    database: 'Scopus', id: 'scopus', accept: '.csv,.ris,.bib,.txt', upload: 'import.uploadScopus', format: 'import.formatBibtex',
     badge: 'bg-orange-100 dark:bg-orange-900/30', iconColor: 'text-orange-600 dark:text-orange-400', panel: 'bg-orange-50 dark:bg-orange-900/30', strong: 'text-orange-800 dark:text-orange-300', soft: 'text-orange-700 dark:text-orange-400'
   },
   {
@@ -1876,10 +1876,10 @@ const DatabaseImportCard = ({ source, imports, duplicatesById, isLoading, onFile
               <span className={`font-medium ${source.strong}`}>{t('import.status')}</span>
               <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" aria-hidden="true" />
             </div>
-            {imports.map((data, index) => (
-              <div key={index} className="space-y-1 text-sm mb-3 last:mb-0">
+            {imports.map((data) => (
+              <div key={data.id} className="space-y-1 text-sm mb-3 last:mb-0">
                 <div className="flex justify-between gap-3">
-                  <span className={source.soft}>{t('import.string', { index: source.numberByDataId ? data.id : index + 1 })}</span>
+                  <span className={source.soft}>{t('import.string', { index: data.id })}</span>
                   <span className={`font-medium tabular-nums ${source.strong}`}>{t('import.articles', { count: data.articles.length })}</span>
                 </div>
                 <p className={`text-xs break-words line-clamp-2 ${source.soft}`} title={data.searchString}>
@@ -4776,16 +4776,22 @@ const SystematicReviewTool = () => {
           {autoSaveEnabled ? t('autosave.indicatorOn') : t('autosave.toggleOn')}
         </button>
       )} */}
-      {hasUnsavedChanges && (
+      {/* Um status por vez: com alterações pendentes, o último salvamento vira só referência */}
+      {hasUnsavedChanges ? (
         <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
           <Clock className="h-4 w-4" />
           {t('app.unsaved')}
+          {lastSaved && (
+            <span className="text-gray-500 dark:text-gray-400 tabular-nums">
+              · {t('app.lastSaved', { time: lastSaved.toLocaleTimeString(intlLocale(i18n.language)) })}
+            </span>
+          )}
         </span>
-      )}
-      {lastSaved && (
+      ) : lastSaved && (
         <span className="flex items-center gap-1">
           <CheckCircle className="h-4 w-4 text-green-600" />
-          {t('app.saved') + (autoSaveEnabled && isFileSystemAccessSupported() ? ' (' + t('autosave.indicatorOn') + ')' : ' ')}: {lastSaved.toLocaleTimeString(intlLocale(i18n.language))}
+          {t('app.saved') + (autoSaveEnabled && isFileSystemAccessSupported() ? ' (' + t('autosave.indicatorOn') + ')' : '')}:
+          <span className="tabular-nums">{lastSaved.toLocaleTimeString(intlLocale(i18n.language))}</span>
         </span>
       )}
     </div>

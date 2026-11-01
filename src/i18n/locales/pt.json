@@ -2,7 +2,8 @@
   "app": {
     "title": "SysReview",
     "unsaved": "Não salvo",
-    "saved": "Salvo"
+    "saved": "Salvo",
+    "lastSaved": "último salvamento às {{time}}"
   },
   "autosave": {
     "title": "Salvamento automático",
