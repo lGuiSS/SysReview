@@ -372,6 +372,22 @@
     "protocolSheet": "Protocol"
   },
   "stats": {
+    "similarityThreshold": "Similarity threshold",
+    "xlsx": {
+      "sheetNodes": "Nodes",
+      "sheetEdges": "Edges",
+      "sheetStats": "Statistics",
+      "label": "Label",
+      "source": "Source",
+      "target": "Target",
+      "weight": "Weight",
+      "metric": "Metric",
+      "value": "Value",
+      "networkType": "Network type",
+      "countingMethod": "Counting method",
+      "totalWeight": "Total weight",
+      "maxWeight": "Maximum weight"
+    },
     "sectionTitle": "Section 7: Statistics and Analysis",
     "tabOverview": "Overview",
     "tabProcess": "Selection Process",

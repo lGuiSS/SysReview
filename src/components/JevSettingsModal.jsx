@@ -2,6 +2,7 @@ import { ChatgptConnection } from "./ChatgptConnection.jsx";
 import { chatgptRequest } from "../ai/chatgptClient.js";
 import { useState } from "react";
 import { DialogPanel } from "./Dialog.jsx";
+import { useFormat } from "../i18n/format.js";
 import { useTranslation } from 'react-i18next';
 import { X, ListChecks, Link } from "lucide-react";
 import { evaluate, DEFAULT_MODEL, DEFAULT_CONCURRENCY, PRICE_PER_MTOK_USD } from "../ai/jevClient.js";
@@ -18,6 +19,7 @@ const labelCls = "text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 blo
 
 export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onClose, rulesOnly = false }) {
   const { t } = useTranslation();
+  const fmt = useFormat();
   const config = getAiConfig({ aiConfig });
   const [provider, setProvider] = useState(settings.provider === 'chatgpt' ? 'chatgpt' : 'jev');
   const [chatgptModel, setChatgptModel] = useState(settings.chatgptModel || '');
@@ -258,8 +260,8 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onCl
           {!rulesOnly && usageTokens > 0 && provider === 'jev' && (
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {t('assist.usage', {
-                tokens: usageTokens.toLocaleString(),
-                cost: ((usageTokens / 1e6) * PRICE_PER_MTOK_USD).toFixed(4),
+                tokens: fmt.num(usageTokens),
+                cost: fmt.num((usageTokens / 1e6) * PRICE_PER_MTOK_USD, 4),
               })}
             </p>
           )}

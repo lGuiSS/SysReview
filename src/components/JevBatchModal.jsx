@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { DialogPanel } from './Dialog.jsx';
+import { useFormat } from '../i18n/format.js';
 import { useTranslation } from 'react-i18next';
 import { X, ListChecks, Minimize2, Settings } from 'lucide-react';
 import { jevErrorMessage } from '../ai/messages.js';
@@ -39,6 +40,7 @@ export function ApplicationRulesSummary({ rule, onEditRules }) {
 
 export function JevBatchModal({ job, controller, rule, onEditRules }) {
   const { t } = useTranslation();
+  const fmt = useFormat();
   if (!job) return null;
   const active = ['preparing', 'ready', 'running'].includes(job.phase);
   const done = job.phase === 'done' || job.phase === 'stopped';
@@ -92,7 +94,7 @@ export function JevBatchModal({ job, controller, rule, onEditRules }) {
         <ul className="mt-2 space-y-2">{job.errors.map(e => <li key={e.id}><strong>{e.title}</strong><p>{jevErrorMessage(t, e.diagnostic)}</p></li>)}</ul>
       </details>}
     </div>}
-    {done && <p className="text-xs">{t('assist.jobMetrics', { requests: job.requests, tokens: job.inputTokens, median: job.medianMs == null ? '—' : (job.medianMs / 1000).toFixed(1), p95: job.p95Ms == null ? '—' : (job.p95Ms / 1000).toFixed(1) })}</p>}
+    {done && <p className="text-xs">{t('assist.jobMetrics', { requests: fmt.num(job.requests), tokens: fmt.num(job.inputTokens), median: job.medianMs == null ? '—' : fmt.num(job.medianMs / 1000, 1), p95: job.p95Ms == null ? '—' : fmt.num(job.p95Ms / 1000, 1) })}</p>}
   </ModalShell>;
 }
 

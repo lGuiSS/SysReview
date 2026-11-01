@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { useTranslation } from 'react-i18next';
 import { ChartArea, Download, X, Map, Earth, Network, BarChart3, HelpCircle, Info } from 'lucide-react';
 import { DialogPanel } from './Dialog.jsx';
+import { useFormat } from '../i18n/format.js';
 import {
   Line, Bar, Cell, Pie, PieChart, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ComposedChart, BarChart,
@@ -622,7 +623,7 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
               bg-gray-100 hover:bg-gray-200 text-gray-700
               dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300
               transition-colors duration-150">
-            {t('common.cancel', 'Cancelar')}
+            {t('modals.confirm.cancel')}
           </button>
           <button onClick={handleExport}
             className="flex-1 px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
@@ -1333,6 +1334,7 @@ const ClusterBarChart = ({ clusterData, theme }) => {
 // Cluster Visualization: Heatmap
 // ─────────────────────────────────────────────────────────────────────────────
 const ClusterHeatmap = ({ similarityMatrix, clusterNames, theme }) => {
+  const fmt = useFormat();
   const [hoveredCell, setHoveredCell] = useState(null);
   const size = clusterNames.length;
   const cellSize = Math.min(60, Math.floor(500 / size));
@@ -1404,7 +1406,7 @@ const ClusterHeatmap = ({ similarityMatrix, clusterNames, theme }) => {
                   fontSize={9}
                   fill={val > 0.5 ? '#fff' : theme === 'dark' ? '#d1d5db' : '#374151'}
                 >
-                  {val.toFixed(2)}
+                  {fmt.num(val, 2)}
                 </text>
               )}
             </g>
@@ -1413,7 +1415,7 @@ const ClusterHeatmap = ({ similarityMatrix, clusterNames, theme }) => {
       </svg>
       {hoveredCell && (
         <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          {clusterNames[hoveredCell.i]} × {clusterNames[hoveredCell.j]}: {hoveredCell.val.toFixed(3)}
+          {clusterNames[hoveredCell.i]} × {clusterNames[hoveredCell.j]}: {fmt.num(hoveredCell.val, 3)}
         </div>
       )}
     </div>
@@ -1424,6 +1426,8 @@ const ClusterHeatmap = ({ similarityMatrix, clusterNames, theme }) => {
 // Cluster Visualization: Network Graph
 // ─────────────────────────────────────────────────────────────────────────────
 const ClusterNetwork = ({ clusterData, similarityMatrix, theme }) => {
+  const { t } = useTranslation();
+  const fmt = useFormat();
   const svgRef = useRef(null);
   const [positions, setPositions] = useState([]);
   const [dragging, setDragging] = useState(null);
@@ -1531,7 +1535,7 @@ const ClusterNetwork = ({ clusterData, similarityMatrix, theme }) => {
     <div>
       <div className="flex items-center gap-4 mb-4">
         <label htmlFor="sim-threshold" className="text-sm text-gray-600 dark:text-gray-400">
-          Limiar de similaridade: {simThreshold.toFixed(2)}
+          {t('stats.similarityThreshold')}: <span className="tabular-nums">{fmt.num(simThreshold, 2)}</span>
         </label>
         <input id="sim-threshold"
           type="range"
@@ -1625,6 +1629,7 @@ const ClusterNetwork = ({ clusterData, similarityMatrix, theme }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclusionCriteria, statistics, theme, importedData = [], }) => {
   const { t } = useTranslation();
+  const fmt = useFormat();
 
   const criterionDisplay = (ctr) =>
     ctr === 'Exclusão' ? t('stats.exclusion') : ctr === 'Inclusão' ? t('stats.inclusion') : t('stats.total');
@@ -2101,18 +2106,18 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
     const R = Math.PI / 180, radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     return <text x={cx + radius * Math.cos(-midAngle * R)} y={cy + radius * Math.sin(-midAngle * R)}
       fill="white" textAnchor="middle" dominantBaseline="central" fontSize={14} fontWeight="600">
-      {`${(percent * 100).toFixed(0)}%`}</text>;
+      {fmt.pct(percent)}</text>;
   };
   const renderCriterionLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }) => {
     if (!value || !percent || percent < 0.03) return null; const R = Math.PI / 180;
     if (percent < 0.07) {
       const radius = outerRadius + 18, x = cx + radius * Math.cos(-midAngle * R), y = cy + radius * Math.sin(-midAngle * R);
-      return <text x={x} y={y} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={11} fill="#9ca3af">{`${(percent * 100).toFixed(0)}%`}</text>;
+      return <text x={x} y={y} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={11} fill="#9ca3af">{fmt.pct(percent)}</text>;
     }
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     return <text x={cx + radius * Math.cos(-midAngle * R)} y={cy + radius * Math.sin(-midAngle * R)}
       fill="white" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight="600">
-      {`${(percent * 100).toFixed(0)}%`}</text>;
+      {fmt.pct(percent)}</text>;
   };
   const CustomLegend = ({ data }) => (
     <div className="flex justify-center flex-wrap gap-3 mt-2">
@@ -2641,6 +2646,7 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
 // ─────────────────────────────────────────────────────────────────────────────
 const NetworkTab = ({ articles, theme }) => {
   const { t } = useTranslation();
+  const fmt = useFormat();
   const [networkType, setNetworkType] = useState('coauthorship');
   const [countingMethod, setCountingMethod] = useState('fractional');
   const [viewMode, setViewMode] = useState('network');
@@ -2782,12 +2788,15 @@ const NetworkTab = ({ articles, theme }) => {
     wb.creator = 'SysReview';
     wb.created = new Date();
 
-    const wsNodes = wb.addWorksheet('Nós');
+    const x = (key) => t(`stats.xlsx.${key}`);
+    const round = (value, digits) => Number((value ?? 0).toFixed(digits));
+
+    const wsNodes = wb.addWorksheet(x('sheetNodes'));
     wsNodes.columns = [
       { header: 'ID', key: 'id', width: 40 },
-      { header: 'Label', key: 'label', width: 40 },
+      { header: x('label'), key: 'label', width: 40 },
       { header: countLabel, key: 'count', width: 15 },
-      { header: 'Cluster', key: 'cluster', width: 10 },
+      { header: t('stats.cluster'), key: 'cluster', width: 10 },
     ];
     filteredData.nodes.forEach(n => {
       wsNodes.addRow({
@@ -2798,30 +2807,30 @@ const NetworkTab = ({ articles, theme }) => {
       });
     });
 
-    const wsEdges = wb.addWorksheet('Arestas');
+    const wsEdges = wb.addWorksheet(x('sheetEdges'));
     wsEdges.columns = [
-      { header: 'Origem', key: 'source', width: 40 },
-      { header: 'Destino', key: 'target', width: 40 },
-      { header: 'Peso', key: 'weight', width: 15 },
+      { header: x('source'), key: 'source', width: 40 },
+      { header: x('target'), key: 'target', width: 40 },
+      { header: x('weight'), key: 'weight', width: 15 },
     ];
     filteredData.edges.forEach(e => {
       wsEdges.addRow({ source: e.source, target: e.target, weight: e.weight });
     });
 
-    const wsStats = wb.addWorksheet('Estatísticas');
+    const wsStats = wb.addWorksheet(x('sheetStats'));
     wsStats.columns = [
-      { header: 'Métrica', key: 'metric', width: 30 },
-      { header: 'Valor', key: 'value', width: 20 },
+      { header: x('metric'), key: 'metric', width: 30 },
+      { header: x('value'), key: 'value', width: 20 },
     ];
-    wsStats.addRow({ metric: 'Tipo de rede', value: networkType === 'keywords' ? 'Palavras-chave' : 'Coautoria' });
-    wsStats.addRow({ metric: 'Método de contagem', value: countingMethod === 'fractional' ? 'Fracionário' : 'Pleno' });
-    wsStats.addRow({ metric: 'Nós', value: filteredData.stats.nodeCount });
-    wsStats.addRow({ metric: 'Arestas', value: filteredData.stats.edgeCount });
-    wsStats.addRow({ metric: 'Clusters', value: filteredData.communityCount });
-    wsStats.addRow({ metric: 'Densidade', value: filteredData.stats?.density?.toFixed(6) ?? '0' });
-    wsStats.addRow({ metric: 'Peso total', value: filteredData.stats?.totalWeight?.toFixed(2) ?? '0' });
-    wsStats.addRow({ metric: 'Peso máximo', value: filteredData.stats?.maxWeight?.toFixed(2) ?? '0' });
-    wsStats.addRow({ metric: 'Publicações', value: filteredData.stats?.publicationCount ?? 0 });
+    wsStats.addRow({ metric: x('networkType'), value: networkType === 'keywords' ? t('stats.keywords') : t('stats.coauthorship') });
+    wsStats.addRow({ metric: x('countingMethod'), value: countingMethod === 'fractional' ? t('stats.fractional') : t('stats.full') });
+    wsStats.addRow({ metric: t('stats.nodeCountLabel'), value: filteredData.stats.nodeCount });
+    wsStats.addRow({ metric: t('stats.edgeCountLabel'), value: filteredData.stats.edgeCount });
+    wsStats.addRow({ metric: t('stats.clusters'), value: filteredData.communityCount });
+    wsStats.addRow({ metric: t('stats.density'), value: round(filteredData.stats?.density, 6) });
+    wsStats.addRow({ metric: x('totalWeight'), value: round(filteredData.stats?.totalWeight, 2) });
+    wsStats.addRow({ metric: x('maxWeight'), value: round(filteredData.stats?.maxWeight, 2) });
+    wsStats.addRow({ metric: t('stats.publications'), value: filteredData.stats?.publicationCount ?? 0 });
 
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -2831,7 +2840,7 @@ const NetworkTab = ({ articles, theme }) => {
     link.href = url;
     link.click();
     URL.revokeObjectURL(url);
-  }, [filteredData, networkType, countingMethod, countLabel, countKey]);
+  }, [filteredData, networkType, countingMethod, countLabel, countKey, t]);
 
   if (validArticles.length < 2) {
     return (
@@ -3024,15 +3033,15 @@ const NetworkTab = ({ articles, theme }) => {
             <span className="font-semibold text-gray-700 dark:text-gray-300">
               {networkType === 'keywords' ? t('stats.keywords') : t('stats.authors')}:
             </span>
-            <span className="text-indigo-600 dark:text-indigo-400 font-bold">{filteredData.stats.nodeCount}</span>
+            <span className="text-indigo-600 dark:text-indigo-400 font-bold tabular-nums">{filteredData.stats.nodeCount}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-semibold text-gray-700 dark:text-gray-300">{t('stats.connections')}:</span>
-            <span className="text-indigo-600 dark:text-indigo-400 font-bold">{filteredData.stats.edgeCount}</span>
+            <span className="text-indigo-600 dark:text-indigo-400 font-bold tabular-nums">{filteredData.stats.edgeCount}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-semibold text-gray-700 dark:text-gray-300">{t('stats.clusters')}:</span>
-            <span className="text-indigo-600 dark:text-indigo-400 font-bold">
+            <span className="text-indigo-600 dark:text-indigo-400 font-bold tabular-nums">
               {(() => {
                 const cc = {};
                 filteredData.nodes.forEach(n => {
@@ -3044,8 +3053,8 @@ const NetworkTab = ({ articles, theme }) => {
           </div>
           <div className="flex items-center gap-2">
             <span className="font-semibold text-gray-700 dark:text-gray-300">{t('stats.density')}:</span>
-            <span className="text-indigo-600 dark:text-indigo-400 font-bold">
-              {filteredData.stats?.density?.toFixed(4) ?? '0.0000'}
+            <span className="text-indigo-600 dark:text-indigo-400 font-bold tabular-nums">
+              {fmt.num(filteredData.stats?.density, 4)}
             </span>
           </div>
         </div>

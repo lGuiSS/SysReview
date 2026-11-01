@@ -4,6 +4,7 @@ import { Check, X, HelpCircle, FileText, ChevronDown, RefreshCw } from "lucide-r
 import { suggestionTooltip, jevErrorMessage } from "../ai/messages.js";
 import { suggestionProbability, hasActionableDecision } from "../ai/screening.js";
 import { requiresReevaluation } from '../ai/modelCapabilities.js';
+import { useFormat } from '../i18n/format.js';
 
 const DECISION_STYLE = {
   included: { Icon: Check, cls: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300', key: 'assist.suggestInclude' },
@@ -56,6 +57,7 @@ const ProbabilityRow = ({ id, label, value, tone, unknownLabel }) => (
 // Bloco recolhível "Sugestão" do modal de detalhes do artigo
 export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error, onEvaluate, onAccept, reviewState }) => {
   const { t } = useTranslation();
+  const fmt = useFormat();
   const [open, setOpen] = useState(true);
   const style = suggestion ? (DECISION_STYLE[suggestion.decision] ?? DECISION_STYLE.uncertain) : null;
   const labelOf = (category, id) => criteria.find(c => c.category === category && c.id === id)?.label ?? id;
@@ -126,7 +128,7 @@ export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error
 
           {suggestion?.evaluatedAt && suggestion.model && (
             <p className="text-xs text-gray-400 dark:text-gray-500">
-              {t('assist.evaluatedAt', { date: new Date(suggestion.evaluatedAt).toLocaleString(), model: suggestion.model })}
+              {t('assist.evaluatedAt', { date: fmt.dateTime(suggestion.evaluatedAt), model: suggestion.model })}
             </p>
           )}
           {suggestion?.requestedEffort && <p className="text-xs text-gray-500 dark:text-gray-400">{t('assist.effortLabel')}: {t(`assist.effort.${suggestion.requestedEffort}`, { defaultValue: suggestion.requestedEffort })}</p>}

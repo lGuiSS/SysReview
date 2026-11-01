@@ -26,6 +26,7 @@ import { JevSettingsModal } from "./components/JevSettingsModal.jsx";
 import { JevBatchModal, JevApplyModal } from "./components/JevBatchModal.jsx";
 import { ArticleStatusFilter } from "./components/ArticleStatusFilter.jsx";
 import { DialogPanel } from "./components/Dialog.jsx";
+import { intlLocale } from "./i18n/format.js";
 import { ConfirmDialog, InlineConfirm } from "./components/ConfirmDialog.jsx";
 import { aiReviewState } from "./ai/review.js";
 import { SuggestionBadge, AiReviewNotice } from "./components/SuggestionPanel.jsx";
@@ -1818,7 +1819,7 @@ const DatabaseImportCard = ({ source, imports, duplicatesById, isLoading, onFile
   const { t, i18n } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
   const inputId = `file-upload-${source.id}`;
-  const formatCount = (n) => n.toLocaleString(i18n.language);
+  const formatCount = (n) => n.toLocaleString(intlLocale(i18n.language));
 
   const handleDrop = (e) => {
     e.preventDefault();
@@ -2149,7 +2150,7 @@ const ImportSection = ({ articles, setArticles, onImport, isLoading, importedDat
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {new Date(data.importDate).toLocaleDateString(i18n.language === 'pt' ? 'pt-BR' : 'en-US')}
+                      {new Date(data.importDate).toLocaleDateString(intlLocale(i18n.language))}
                     </td>
                     <td className="px-1 py-4 text-sm font-medium text-gray-500 dark:text-gray-400">
                       <button aria-label={t('import.delete')}
@@ -2244,37 +2245,12 @@ const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateS
     return (scoreZeroHistory.operation?.entries || []).filter(e => canRestoreScoreZero(byId.get(e.id), e)).length;
   }, [articles, scoreZeroHistory]);
 
-  const [duplicateDetection, setDuplicateDetection] = useState({
-    byTitle: true,
-    byDOI: true,
-    byAuthors: true,
-    similarityThreshold: 1
-  });
-  const [duplicates, setDuplicates] = useState(0)
   const [removeIncludes, setRemoveIncludes] = useState(false)
   // 'scoreZero' | 'acceptAll' | null: qual cartão mostra a confirmação
   const [pendingConfirm, setPendingConfirm] = useState(null)
   // Mesma seleção de handleIncludePendents, para a mensagem bater com o que será aceito
   const pendingCount = articles.filter((article) => article.dataProcessingStatus == "pending").length
   const [alertMessage, setAlertMessage] = useState(null)
-  const handleClassifyDuplicates = () => {
-    const statusField = 'dataProcessingStatus';
-
-    // Marcar todas as duplicatas como excluídas
-    articles.forEach(article => {
-      if (article.isDuplicate) {
-        handleDuplicate(article.id)
-        // onUpdateStatus(article.id, statusField, 'duplicate', null);
-      }
-
-    })
-
-    // Mostrar mensagem de confirmação
-    setTimeout(() => {
-      setAlertMessage({ type: 'info', title: t('modals.alert.infoTitle'), message: t('dataprocessing.alertDuplicates', { count: duplicates.length }) });
-    }, 100);
-  };
-
   const handleExcludeScore = (includeApproved) => {
     if (!articles.some(a => eligibleForScoreZero(a, includeApproved))) {
       setAlertMessage({ type: 'info', title: t('modals.alert.infoTitle'), message: t('dataprocessing.noEligible') });
@@ -3706,7 +3682,7 @@ const SystematicReviewTool = () => {
       backupRestoredRef.current = true;
       askConfirm({
         title: t('messages.restoreTitle'),
-        message: t('messages.restoreBackup', { date: new Date(autoSaveResult.data.metadata?.autoSavedAt || Date.now()).toLocaleString(i18n.language) }),
+        message: t('messages.restoreBackup', { date: new Date(autoSaveResult.data.metadata?.autoSavedAt || Date.now()).toLocaleString(intlLocale(i18n.language)) }),
         confirmLabel: t('messages.restoreOk'),
         cancelLabel: t('messages.restoreCancel'),
       }).then(shouldRestore => {
@@ -4809,7 +4785,7 @@ const SystematicReviewTool = () => {
       {lastSaved && (
         <span className="flex items-center gap-1">
           <CheckCircle className="h-4 w-4 text-green-600" />
-          {t('app.saved') + (autoSaveEnabled && isFileSystemAccessSupported() ? ' (' + t('autosave.indicatorOn') + ')' : ' ')}: {lastSaved.toLocaleTimeString()}
+          {t('app.saved') + (autoSaveEnabled && isFileSystemAccessSupported() ? ' (' + t('autosave.indicatorOn') + ')' : ' ')}: {lastSaved.toLocaleTimeString(intlLocale(i18n.language))}
         </span>
       )}
     </div>
@@ -4825,7 +4801,7 @@ const SystematicReviewTool = () => {
     { id: 'statistics', name: t('nav.statistics'), icon: ChartArea },
     { id: 'about', name: t('nav.about'), icon: Info }
   ];
-  const formatCount = (n) => n.toLocaleString(i18n.language);
+  const formatCount = (n) => n.toLocaleString(intlLocale(i18n.language));
   const hasArticles = articles.length > 0;
   const stageDetail = (included, total) => hasArticles && total > 0
     ? t('nav.stepOf', { count: included, included: formatCount(included), total: formatCount(total) })

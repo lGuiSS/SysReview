@@ -372,6 +372,22 @@
     "protocolSheet": "Protocolo"
   },
   "stats": {
+    "similarityThreshold": "Limiar de similaridade",
+    "xlsx": {
+      "sheetNodes": "Nós",
+      "sheetEdges": "Arestas",
+      "sheetStats": "Estatísticas",
+      "label": "Rótulo",
+      "source": "Origem",
+      "target": "Destino",
+      "weight": "Peso",
+      "metric": "Métrica",
+      "value": "Valor",
+      "networkType": "Tipo de rede",
+      "countingMethod": "Método de contagem",
+      "totalWeight": "Peso total",
+      "maxWeight": "Peso máximo"
+    },
     "sectionTitle": "Seção 7: Estatísticas e Análises",
     "tabOverview": "Panorama Geral",
     "tabProcess": "Processo de Seleção",
