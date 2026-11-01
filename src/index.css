@@ -27,6 +27,65 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* O tema vem da classe em <html> (useTheme): barras de rolagem e controles nativos acompanham */
+html.light {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* Lista aberta do <select> no Windows ignora o color-scheme em alguns navegadores */
+.dark select option {
+  background-color: #374151;
+  color: #f9fafb;
+}
+
+/* Movimento reduzido: sem transições nem animações decorativas; spinners continuam, mais lentos */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  *:not(.animate-spin),
+  *:not(.animate-spin)::before,
+  *:not(.animate-spin)::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .animate-spin {
+    animation-duration: 2s !important;
+  }
+}
+
+/* Anel de progresso das etapas da navegação: --p vai de 0 a 1 */
+.step-ring {
+  --step-fill: #22c55e;
+  --step-track: #e5e7eb;
+  background: conic-gradient(var(--step-fill) calc(var(--p, 0) * 1turn), var(--step-track) 0);
+}
+
+.dark .step-ring {
+  --step-fill: #4ade80;
+  --step-track: #374151;
+}
+
+/* Etapa ativa: centro com o fundo da etapa, anel índigo sobre trilha índigo clara */
+.step-ring.is-active {
+  --step-fill: #4f46e5;
+  --step-track: #c7d2fe;
+}
+
+.dark .step-ring.is-active {
+  --step-fill: #a5b4fc;
+  --step-track: #3730a3;
+}
+
 html,
 body,
 #root {
@@ -95,7 +154,7 @@ button:hover {
   border-color: #646cff;
 }
 
-button:focus,
+/* Contorno só na navegação por teclado, não ao clicar */
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }

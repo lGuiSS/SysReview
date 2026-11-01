@@ -28,7 +28,6 @@ const articleSteps = (id, hasArticles) => {
 export const buildTourSteps = ({ hasArticles }) => [
   { key: 'welcome' },
   { key: 'nav', element: anchor('nav'), side: 'bottom' },
-  { key: 'overview', element: anchor('overview'), side: 'bottom' },
   { key: 'protocolBasic', section: 'protocol', element: anchor('protocol-basic'), side: 'right' },
   { key: 'protocolDatabases', section: 'protocol', element: anchor('protocol-databases'), side: 'right' },
   { key: 'protocolCriteria', section: 'protocol', element: anchor('protocol-criteria'), side: 'left' },

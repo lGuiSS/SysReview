@@ -11,11 +11,30 @@ export const DECISION_LABEL_KEY = {
 
 export const jevErrorMessage = (t, error) => {
   switch (error?.code) {
+    case 'response-invalid': {
+      const base = error.criterionId && error.criterionId !== 'answers'
+        ? t('assist.errorResponse', { criterion: error.criterionId.replace(/^(inc|exc|q)_/, '') })
+        : t('assist.errorResponseGeneral');
+      const reason = t(`assist.responseReason.${error.reason}`, { defaultValue: '' });
+      return reason ? `${base} ${reason}` : base;
+    }
+    case 'response-format-repeated': return t('assist.errorRepeatedFormat');
+    case 'refusal': return t('assist.errorRefusal');
+    case 'response-incomplete': return t('assist.errorIncomplete');
+    case 'timeout': return t('assist.errorTimeout');
+    case 'permission': return t('assist.errorPermission');
+    case 'effort': return t('assist.effortInvalid');
+    case 'no-criteria': return t('assist.noCriteria');
+    case 'ai-service': return t('assist.chatgptService');
+    case 'connection-changed':
+    case 'ai-auth': return t('assist.aiSignInAgain');
+    case 'chatgpt-service': return t('assist.chatgptService');
+    case 'chatgpt-auth': return t('assist.chatgptSignInAgain');
     case 'network': return t('assist.errorNetwork');
     case 'auth': return t('assist.errorAuth');
     case 'rate-limit': return t('assist.errorRateLimit');
     case 'no-key': return t('assist.errorNoKey');
-    default: return t('assist.errorApi', { error: error?.message || String(error) });
+    default: return t('assist.errorApi', { error: error?.message || (error?.httpStatus ? `HTTP ${error.httpStatus}` : error?.code || String(error)) });
   }
 };
 

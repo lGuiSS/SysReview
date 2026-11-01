@@ -1,6 +1,6 @@
 # SysReview - Sistema de Revisão Bibliográfica Sistemática
 
-Uma ferramenta completa e 100% client-side para condução de **revisões bibliográficas sistemáticas** seguindo a metodologia **PRISMA**. O SysReview guia o pesquisador desde a definição do protocolo até a análise bibliométrica e exportação dos resultados, sem necessidade de servidor backend.
+Uma ferramenta local para condução de **revisões bibliográficas sistemáticas** seguindo a metodologia **PRISMA**. O SysReview guia o pesquisador desde a definição do protocolo até a análise bibliométrica e exportação dos resultados, com integração opcional ao ChatGPT por um serviço local.
 
 ## Funcionalidades
 
@@ -168,3 +168,127 @@ O score é recalculado automaticamente ao alterar as palavras-chave ou a configu
 ## Autor
 
 **Guilherme Santos Silva** - São Carlos, SP, Brasil
+
+## Desfazer exclusão por score 0
+
+Em **Tratamento de dados**, use **Excluir artigos com score 0** e, quando necessário,
+**Desfazer exclusão por score 0**. A opção de incluir aprovados é explícita.
+O último lote efetivo fica no projeto `.srp` (histórico desde 1.4; formato atual 1.5), inclusive nos
+salvamentos automáticos. Cada artigo retorna ao status anterior, preservando
+edições posteriores. Artigos removidos ou com outra decisão de tratamento
+são ignorados. Projetos antigos abrem normalmente; exclusões antigas não
+possuem histórico para desfazer.
+
+## ChatGPT com OAuth na seleção assistida
+
+Requer Node.js 22 ou superior para o serviço local. O JEV continua disponível.
+Para usar o aplicativo compilado com ChatGPT:
+
+```bash
+npm run build
+npm run chatgpt
+```
+
+Abra **http://127.0.0.1:1455**. Nas configurações de IA, selecione
+**ChatGPT (OAuth)**, clique em **Continuar com ChatGPT**, conclua a autorização
+na aba aberta e volte ao aplicativo. Escolha um modelo disponibilizado pela sua
+conta e salve as configurações. Avaliações individuais e em lote usam os
+mesmos critérios e regras de decisão existentes.
+
+Para desenvolver, mantenha `npm run chatgpt` em uma janela e execute
+`npm run dev` em outra, abrindo **http://127.0.0.1:5173**. Use `127.0.0.1`
+para que o cookie da sessão acompanhe o callback OAuth. No PowerShell com
+scripts bloqueados, use `npm.cmd`. Se o carregador de configuração do Vite
+esbarrar em permissões dos diretórios ancestrais, use
+`npm.cmd run build -- --configLoader runner`.
+
+O fluxo segue a [documentação oficial de registro e login](https://developers.openai.com/siwc/token-sharing-open-source/sign-in)
+e de [modelos e inferência](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference).
+A disponibilidade depende da elegibilidade da conta, da permissão de uso do
+plano e dos limites/créditos aplicáveis. Não é necessária uma API key da OpenAI.
+
+O serviço escuta apenas em loopback e guarda os tokens OAuth na memória;
+é preciso entrar novamente depois de reiniciá-lo. Somente o identificador do
+host e a referência de registro da conta ficam em `.local/chatgpt-host.json`,
+ignorado pelo Git. Desconectar apaga a sessão local e a referência da conta;
+para revogar o acesso no provedor, use as configurações do ChatGPT.
+Tokens não entram no navegador, no localStorage nem em arquivos `.srp`.
+O texto necessário do artigo e os critérios são enviados à OpenAI quando
+você solicita uma avaliação. Probabilidades retornadas pelo ChatGPT são
+estimativas do modelo, não medições calibradas, e exigem revisão humana.
+
+A hospedagem estática continua funcionando com JEV. Este fluxo OAuth é para
+execução local; publicar o frontend estático sozinho não oferece OAuth.
+
+Validação: `npm test`, `npm run build`, `npm run lint`.
+
+## Avaliação minimizável, esforço de raciocínio
+
+A avaliação pode ser **minimizada** sem interromper a fila. Um painel compacto
+mostra o progresso em qualquer seção. **Expandir** volta ao mesmo lote;
+**Interromper** preserva resultados já concluídos. O X durante a execução
+minimiza. Fechar/recarregar a aba encerra a execução; não há retomada automática.
+Abrir/criar outro projeto cancela o lote anterior e impede gravações tardias.
+
+Nas configurações de IA, escolha **Esforço de raciocínio** por provedor/modelo.
+**Padrão do provedor** omite o parâmetro. O esforço de um lote já iniciado
+permanece fixo. JEV mantém seu contrato atual; modelos desconhecidos oferecem
+somente o padrão até que haja suporte confirmado.
+
+**Revisão manual**, **Sem texto** e **Erros** são situações distintas. O filtro
+IA: revisão manual reúne os itens que exigem atenção e mostra seus motivos,
+além de manter a repetição somente dos itens com erro. Uma tentativa com falha preserva a sugestão anterior e todas
+as decisões humanas. A aplicação revalida as condições atuais e não sobrescreve
+uma decisão manual feita enquanto a avaliação estava minimizada.
+
+Após interromper, use **Continuar avaliação** no modal ou painel compacto para
+retomar os itens não concluídos. O lote conserva resultados, contagens e consumo
+anteriores; itens com erro têm uma ação separada de nova tentativa. A retomada
+vale para o lote aberto na sessão e verifica novamente a conexão com o provedor.
+
+ChatGPT usa respostas estruturadas com evidência ou abstenção por
+critério. Não é usado 50% como substituto de evidência ausente. Um critério
+não verificado exige conferência. No Filtro 1, se todos os critérios de inclusão
+foram avaliados e atendem ao limiar e nenhuma exclusão avaliada chega a 50%,
+é possível sugerir inclusão com verificações de exclusão pendentes. O aviso
+permanece visível e a aceitação é explícita. Citações rejeitadas e critérios de
+inclusão não avaliados continuam exigindo revisão manual, assim como pendências
+nos Filtros 2/3. Uma exclusão avaliada com probabilidade
+de pelo menos 50% permite sugerir exclusão e aceitar após conferência, mesmo
+com outros critérios não verificados. Esses casos também podem ser aplicados em lote
+após confirmação, respeitando os limites configurados. Os critérios não
+verificados permanecem sinalizados e nulos; não são motivos de decisão.
+Avaliações inválidas ou desatualizadas e decisões manuais permanecem
+protegidas. Em particular, acesso
+ao texto completo não pode ser comprovado apenas por título/resumo.
+
+Se a citação de um critério não for localizada em um campo do estudo, sua
+probabilidade é descartada e o artigo exige revisão manual, com aviso no painel
+da sugestão. Os demais critérios válidos são preservados. Probabilidades
+inválidas e respostas malformadas continuam sendo erros, agora com motivo
+específico. Depois de atualizar, reinicie o serviço local e recarregue o app;
+erros já registrados só recebem o novo diagnóstico após uma nova tentativa.
+
+Sugestões generativas históricas são preservadas, mas exigem reavaliação antes
+de aceitar/aplicar pela IA. As ações manuais continuam disponíveis. Os limiares
+existentes não tornam as estimativas generativas automaticamente calibradas;
+compare uma amostra com revisão humana antes de excluir em massa.
+
+O formato **1.5.0** guarda evidência, critérios não verificados, esforço,
+diagnóstico da última tentativa e revisões das decisões. Projetos anteriores
+abrem normalmente. Use a versão atual para arquivos novos: versões antigas não
+conhecem o contrato de abstenção. O desfazer da exclusão por score 0 permanece
+compatível com salvar/reabrir e com o salvamento automático.
+
+Os testes cobrem contratos de respostas, fila, cancelamento, conflitos,
+persistência, OAuth e renderização dos controles em português/inglês. A
+conferência visual interativa em navegador e o teste com contas reais continuam
+necessários; testes de renderização não comprovam layout em todos os tamanhos.
+
+O seletor de artigos agrupa as situações de IA sem decisão aplicável em
+**IA: revisão manual**: avaliação inconclusiva, texto insuficiente, erro,
+resultado abaixo do limite, avaliação desatualizada ou ainda não realizada.
+A lista e os detalhes mostram o motivo de cada artigo. Uma tentativa com erro
+não desloca para revisão uma sugestão anterior ainda válida e dentro dos
+limites; nesse caso o erro aparece como aviso. Os grupos de IA são separados
+dos status das decisões humanas, que permanecem preservados.

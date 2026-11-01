@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
 import { XCircle, CheckCircle, BookCopy, ListCollapse, Link  } from "lucide-react";
 import { SuggestionPanel } from "./SuggestionPanel.jsx";
+import { DialogPanel } from "./Dialog.jsx";
 
 const ArticleModal = ({
   article,
@@ -101,7 +102,7 @@ const ArticleModal = ({
 
   return (
     <div
-      className="fixed inset-0 z-49 flex items-end sm:items-center justify-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
       onClick={() => closeWithAnimation()}
       style={{
         backgroundColor: 'rgba(0,0,0,0.5)',
@@ -109,7 +110,9 @@ const ArticleModal = ({
         transition: 'opacity 0.3s ease',
       }}
     >
-      <div
+      <DialogPanel
+        onClose={closeWithAnimation}
+        labelledBy="article-modal-title"
         className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-6xl flex flex-col"
         style={sheetStyle}
         onClick={(e) => e.stopPropagation()}
@@ -127,7 +130,7 @@ const ArticleModal = ({
             onTouchEnd={onHandleTouchEnd}
           >
             <div
-              className="rounded-full transition-all duration-150"
+              className="rounded-full transition-[width,background-color] duration-150 motion-reduce:transition-none"
               style={{
                 width:           isDragging ? '52px' : '40px',
                 height:          '4px',
@@ -137,7 +140,7 @@ const ArticleModal = ({
           </div>
 
           <div className="flex justify-between items-start gap-3">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 flex-1">
+            <h3 id="article-modal-title" className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 flex-1">
               {article.title}
             </h3>
             <button
@@ -260,7 +263,7 @@ const ArticleModal = ({
                 onClick={onClick}
                 disabled={disabled}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium touch-manipulation
-                            active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed ${cls}`}
+                            active:scale-95 transition duration-150 disabled:opacity-40 disabled:cursor-not-allowed ${cls}`}
               >
                 {icon}
                 <span>{label}</span>
@@ -274,7 +277,7 @@ const ArticleModal = ({
               disabled={currentArticle === 0}
               className="flex-1 sm:flex-none px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-xl touch-manipulation
                          disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95
-                         bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 transition-all duration-150"
+                         bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 transition duration-150"
             >
               {t('modals.article.previous')}
             </button>
@@ -286,14 +289,14 @@ const ArticleModal = ({
               disabled={currentArticle === totalArticles - 1}
               className="flex-1 sm:flex-none px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-xl touch-manipulation
                          disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95
-                         bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 transition-all duration-150"
+                         bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 transition duration-150"
             >
               {t('modals.article.next')}
             </button>
           </div>
         </div>
 
-      </div>
+      </DialogPanel>
     </div>
   );
 };

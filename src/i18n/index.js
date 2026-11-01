@@ -27,5 +27,7 @@ i18n
 i18n.on('languageChanged', (lng) => {
   document.documentElement.lang = lng;
 });
+// O init acima é síncrono (recursos embutidos), então o primeiro languageChanged já passou
+document.documentElement.lang = i18n.resolvedLanguage || 'pt';
 
 export default i18n;

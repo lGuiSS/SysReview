@@ -1,8 +1,36 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt">
   <head>
     <meta charset="UTF-8" />
-    <meta name="color-scheme" content="light">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#eff6ff">
+    <!-- Fundo do tema antes do CSS chegar: evita o primeiro quadro escuro/claro errado -->
+    <style>
+      html.light { color-scheme: light; background: #eff6ff; }
+      html.dark { color-scheme: dark; background: #111827; }
+      /* Tela de abertura: camada sólida própria que cobre a primeira pintura do app
+         (o Chrome chega a mostrar blocos ainda não pintados como retângulos de borda branca) */
+      #boot-splash {
+        position: fixed; inset: 0; z-index: 2147483647;
+        display: grid; place-items: center;
+        background: #eff6ff; color: #4f46e5;
+        font: 600 1.5rem system-ui, sans-serif;
+        will-change: opacity; transition: opacity .2s ease;
+      }
+      html.dark #boot-splash { background: #111827; color: #a5b4fc; }
+      #boot-splash.is-hidden { opacity: 0; pointer-events: none; }
+      @media (prefers-reduced-motion: reduce) { #boot-splash { transition: none; } }
+    </style>
+    <script>
+      // Aplica tema e idioma salvos antes da primeira pintura (useTheme e i18n mantêm depois)
+      try {
+        var theme = localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.classList.add(theme);
+        document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#111827' : '#eff6ff';
+        var lang = localStorage.getItem('sysreview_lang');
+        if (lang) document.documentElement.lang = lang;
+      } catch (e) {}
+    </script>
 
     <!-- <link rel="icon" type="image/svg+xml" href="/vite.svg" /> -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -16,6 +44,7 @@
 
   </head>
   <body style="overflow-x: hidden !important ">
+    <div id="boot-splash" aria-hidden="true">SysReview</div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <!-- <script src="https://cdn.tailwindcss.com"></script> -->

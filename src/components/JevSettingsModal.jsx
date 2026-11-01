@@ -1,25 +1,38 @@
+import { ChatgptConnection } from "./ChatgptConnection.jsx";
+import { chatgptRequest } from "../ai/chatgptClient.js";
 import { useState } from "react";
+import { DialogPanel } from "./Dialog.jsx";
 import { useTranslation } from 'react-i18next';
 import { X, ListChecks, Link } from "lucide-react";
-import { evaluate, DEFAULT_MODEL, PRICE_PER_MTOK_USD } from "../ai/jevClient.js";
+import { evaluate, DEFAULT_MODEL, DEFAULT_CONCURRENCY, PRICE_PER_MTOK_USD } from "../ai/jevClient.js";
 import { getAiConfig } from "../ai/screening.js";
 import { jevErrorMessage } from "../ai/messages.js";
+import { effortOptions, selectedEffort } from '../ai/modelCapabilities.js';
 
 const inputCls = `w-full px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors
   bg-white dark:bg-gray-700 text-gray-800 dark:text-white
   placeholder-gray-400 dark:placeholder-gray-500 border-gray-200 dark:border-gray-600
-  focus:outline-none focus:ring-2 focus:ring-indigo-500`;
+  focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500`;
 
 const labelCls = "text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 block";
 
-export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
+export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onClose, rulesOnly = false }) {
   const { t } = useTranslation();
   const config = getAiConfig({ aiConfig });
+  const [provider, setProvider] = useState(settings.provider === 'chatgpt' ? 'chatgpt' : 'jev');
+  const [chatgptModel, setChatgptModel] = useState(settings.chatgptModel || '');
+  const [effortByModel, setEffortByModel] = useState(settings.effortByModel || {});
+  const [chatgptConnected, setChatgptConnected] = useState(false);
   const [apiKey, setApiKey] = useState(settings.apiKey || '');
   const [baseUrl, setBaseUrl] = useState(settings.baseUrl || '');
-  const [concurrency, setConcurrency] = useState(settings.concurrency || 4);
+  const [concurrency, setConcurrency] = useState(settings.concurrency || DEFAULT_CONCURRENCY);
   const [longContext, setLongContext] = useState(!!settings.longContext);
   const [model, setModel] = useState(config.model || DEFAULT_MODEL);
+  const activeModel = provider === 'chatgpt' ? chatgptModel : model;
+  const effort = selectedEffort({ provider, effortByModel }, activeModel);
+  const efforts = effortOptions(provider, activeModel);
+  const effortValid = efforts.includes(effort);
+  const connected = chatgptConnected;
   const toPct = (v) => Math.round(v * 1000) / 10;
   const [rules, setRules] = useState({
     f1Include: toPct(config.rules.filter1.includeAt),
@@ -40,7 +53,9 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
   const handleTest = async () => {
     setTestState({ status: 'testing' });
     try {
-      const response = await evaluate({
+      const status = provider !== 'jev' ? await chatgptRequest('status', { provider }) : null;
+      const response = provider !== 'jev' ? await chatgptRequest('evaluate', { provider, body: { model: activeModel, effort, connectionId: status.connectionId,
+        state: { title: 'Connection test' }, questions: { ping: { type: 'noul', instructions: 'Is the title nonempty?' } } } }) : await evaluate({
         apiKey: apiKey.trim(),
         baseUrl: baseUrl.trim(),
         model: model.trim() || DEFAULT_MODEL,
@@ -55,46 +70,38 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    onSave(
-      {
-        apiKey: apiKey.trim(),
-        baseUrl: baseUrl.trim(),
-        concurrency: Math.min(16, Math.max(1, Number(concurrency) || 4)),
-        longContext,
+    const nextConfig = {
+      ...config,
+      rules: {
+        filter1: { ...config.rules.filter1, includeAt: clampRule('f1Include', rules.f1Include) / 100, excludeAt: clampRule('f1Exclude', rules.f1Exclude) / 100 },
+        filter2: { ...config.rules.filter2, applyAt: clampRule('f2Apply', rules.f2Apply) / 100 },
+        filter3: { ...config.rules.filter3, applyAt: clampRule('f3Apply', rules.f3Apply) / 100 },
       },
-      {
-        ...config,
-        model: model.trim() || DEFAULT_MODEL,
-        rules: {
-          filter1: {
-            ...config.rules.filter1,
-            includeAt: clampRule('f1Include', rules.f1Include) / 100,
-            excludeAt: clampRule('f1Exclude', rules.f1Exclude) / 100,
-          },
-          filter2: { ...config.rules.filter2, applyAt: clampRule('f2Apply', rules.f2Apply) / 100 },
-          filter3: { ...config.rules.filter3, applyAt: clampRule('f3Apply', rules.f3Apply) / 100 },
-        },
-        minQuality: Math.min(2, Math.max(0, Number(minQuality) || 0)),
-      }
-    );
+      minQuality: Math.min(2, Math.max(0, Number(minQuality) || 0)),
+    };
+    if (rulesOnly) { onSaveRules(nextConfig); return; }
+    onSave({ provider, chatgptModel, effortByModel, apiKey: apiKey.trim(), baseUrl: baseUrl.trim(),
+      concurrency: Math.min(16, Math.max(1, Number(concurrency) || DEFAULT_CONCURRENCY)), longContext },
+    { ...nextConfig, model: model.trim() || DEFAULT_MODEL });
   };
 
-  const usageTokens = config.usage.inputTokens || 0;
+  const usageTokens = config.usage.byProvider?.jev?.inputTokens ?? (config.usage.byProvider ? 0 : config.usage.inputTokens);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50 p-4">
-      <div className="w-80 sm:w-[26rem] md:w-[32rem] max-h-[92dvh] flex flex-col bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700">
+      <DialogPanel onClose={onClose} labelledBy="jev-settings-title" className="w-80 sm:w-[26rem] md:w-[32rem] max-h-[92dvh] flex flex-col bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700">
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2 sm:gap-3">
             <ListChecks className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600 dark:text-indigo-400" />
-            <p className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white">
-              {t('assist.settingsTitle')}
-            </p>
+            <h2 id="jev-settings-title" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white">
+              {t(rulesOnly ? 'assist.editRules' : 'assist.settingsTitle')}
+            </h2>
           </div>
           <button
             onClick={onClose}
+            aria-label={t('modals.close')}
             className="p-1 sm:p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition-colors"
           >
             <X className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -103,14 +110,24 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
 
         {/* Body */}
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto">
+          {rulesOnly && <p className="text-sm text-gray-600 dark:text-gray-300">{t('assist.rulesNoReevaluation')}</p>}
+          {!rulesOnly && <>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
             {t('assist.intro')}
           </p>
 
+          <label className={labelCls}>{t('assist.provider')}
+            <select value={provider} onChange={e => { setProvider(e.target.value); setTestState(null); }} className={inputCls}>
+              <option value="jev">JEV (TypeSafe)</option>
+              <option value="chatgpt">ChatGPT (OAuth)</option>
+            </select>
+          </label>
+          {provider === 'chatgpt' && <ChatgptConnection model={chatgptModel} onModelChange={setChatgptModel} onConnectedChange={setChatgptConnected} />}
+          {provider === 'jev' && <>
           <div>
-            <label className={labelCls}>{t('assist.apiKey')}</label>
+            <label htmlFor="jev-api-key" className={labelCls}>{t('assist.apiKey')}</label>
             <div className="flex gap-2">
-              <input
+              <input id="jev-api-key"
                 type="password"
                 autoComplete="off"
                 value={apiKey}
@@ -143,25 +160,15 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>{t('assist.model')}</label>
-              <input value={model} onChange={(e) => setModel(e.target.value)} className={inputCls} />
+              <label htmlFor="jev-model" className={labelCls}>{t('assist.model')}</label>
+              <input id="jev-model" value={model} onChange={(e) => setModel(e.target.value)} className={inputCls} />
             </div>
-            <div>
-              <label className={labelCls}>{t('assist.concurrency')}</label>
-              <input
-                type="number"
-                min={1}
-                max={16}
-                value={concurrency}
-                onChange={(e) => setConcurrency(e.target.value)}
-                className={inputCls}
-              />
-            </div>
+
           </div>
 
           <div>
-            <label className={labelCls}>{t('assist.baseUrl')}</label>
-            <input
+            <label htmlFor="jev-base-url" className={labelCls}>{t('assist.baseUrl')}</label>
+            <input id="jev-base-url"
               value={baseUrl}
               onChange={(e) => { setBaseUrl(e.target.value); setTestState(null); }}
               placeholder="https://api.typesafe.ai"
@@ -175,13 +182,36 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
               type="checkbox"
               checked={longContext}
               onChange={(e) => setLongContext(e.target.checked)}
-              className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+              className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus-visible:ring-indigo-500"
             />
             {t('assist.longContext')}
           </label>
 
-          <div className="space-y-3">
-            <label className={labelCls}>{t('assist.rulesTitle')}</label>
+          </>}
+                      <div>
+              <label htmlFor="jev-concurrency" className={labelCls}>{t('assist.concurrency')}</label>
+              <input id="jev-concurrency"
+                type="number"
+                min={1}
+                max={16}
+                value={concurrency}
+                onChange={(e) => setConcurrency(e.target.value)}
+                className={inputCls}
+              />
+            </div>
+          {provider !== 'jev' && <label className={labelCls}>{t('assist.effortLabel')}
+            <select value={effort} onChange={e => { setEffortByModel(prev => ({ ...prev, [`${provider}:${activeModel}`]: e.target.value })); setTestState(null); }} className={inputCls}>
+              {!effortValid && <option value={effort} disabled>{t('assist.effortInvalid')}</option>}
+              {efforts.map(value => <option key={value} value={value}>{t(`assist.effort.${value}`, { defaultValue: value })}</option>)}
+            </select>
+            <span className="block mt-2">{t('assist.effortHint')}</span>
+          </label>}
+          {!effortValid && <p role="alert" className="text-red-600">{t('assist.effortInvalid')}</p>}
+
+
+          </>}
+          <fieldset className="space-y-3">
+            <legend className={labelCls}>{t('assist.rulesTitle')}</legend>
             {[
               { key: 'f1Include', label: t('assist.ruleF1Include') },
               { key: 'f1Exclude', label: t('assist.ruleF1Exclude') },
@@ -189,11 +219,13 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
               { key: 'f3Apply', label: t('assist.ruleApply', { n: 3 }) },
             ].map(({ key, label }) => (
               <div key={key} className="flex items-center justify-between gap-3">
-                <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">{label}</span>
+                <label htmlFor={`ai-rule-${key}`} className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">{label}</label>
                 <div className="flex items-center gap-1 shrink-0">
                   <span className="text-xs text-gray-500 dark:text-gray-400">≥</span>
                   <input
                     type="number"
+                    id={`ai-rule-${key}`}
+                    autoFocus={rulesOnly && key === 'f1Include'}
                     min={RULE_LIMITS[key][0]}
                     max={RULE_LIMITS[key][1]}
                     step={0.5}
@@ -207,11 +239,11 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
               </div>
             ))}
             <p className="text-xs text-gray-400 dark:text-gray-500">{t('assist.rulesHint')}</p>
-          </div>
+          </fieldset>
 
           <div>
-            <label className={labelCls}>{t('assist.minQuality')}</label>
-            <input
+            <label htmlFor="jev-min-quality" className={labelCls}>{t('assist.minQuality')}</label>
+            <input id="jev-min-quality"
               type="number"
               min={0}
               max={2}
@@ -223,7 +255,7 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{t('assist.minQualityLevels')}</p>
           </div>
 
-          {usageTokens > 0 && (
+          {!rulesOnly && usageTokens > 0 && provider === 'jev' && (
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {t('assist.usage', {
                 tokens: usageTokens.toLocaleString(),
@@ -244,9 +276,9 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
 
         {/* Footer */}
         <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 py-4 sm:py-5 border-t border-gray-100 dark:border-gray-700">
-          <button
+          {!rulesOnly && <button
             onClick={handleTest}
-            disabled={!apiKey.trim() || testState?.status === 'testing'}
+            disabled={(provider !== 'jev' ? !connected || !activeModel || !effortValid : !apiKey.trim()) || testState?.status === 'testing'}
             className="flex-1 px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
               bg-gray-100 hover:bg-gray-200 text-gray-700
               dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300
@@ -254,7 +286,7 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
               transition-colors duration-150"
           >
             {testState?.status === 'testing' ? t('assist.testing') : t('assist.test')}
-          </button>
+          </button>}
           <button
             onClick={onClose}
             className="flex-1 px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
@@ -266,6 +298,7 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
           </button>
           <button
             onClick={handleSave}
+            disabled={!rulesOnly && provider !== 'jev' && (!connected || !activeModel || !effortValid)}
             className="flex-1 px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
               bg-indigo-600 hover:bg-indigo-700 text-white
               dark:bg-indigo-500 dark:hover:bg-indigo-600
@@ -274,7 +307,7 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onClose }) {
             {t('assist.save')}
           </button>
         </div>
-      </div>
+      </DialogPanel>
     </div>
   );
 }

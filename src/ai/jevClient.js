@@ -1,6 +1,7 @@
 // jevClient.js - Cliente HTTP para o Jev (TypeSafe System One)
 
 export const DEFAULT_MODEL = 'jev-1.13.0';
+export const DEFAULT_CONCURRENCY = 10;
 export const PRICE_PER_MTOK_USD = 0.042;
 
 const SETTINGS_KEY = 'sysreview-jev-settings';
@@ -17,12 +18,13 @@ export const loadJevSettings = () => {
     return {
       apiKey: '',
       baseUrl: '',
-      concurrency: 4,
+      concurrency: DEFAULT_CONCURRENCY,
       longContext: false,
       ...parsed,
+      provider: parsed.provider === 'chatgpt' ? 'chatgpt' : 'jev',
     };
   } catch {
-    return { apiKey: '', baseUrl: '', concurrency: 4, longContext: false };
+    return { apiKey: '', baseUrl: '', concurrency: DEFAULT_CONCURRENCY, longContext: false };
   }
 };
 
@@ -118,7 +120,7 @@ export const evaluate = async ({
 
 // Executa `worker` sobre `items` com concorrência limitada.
 // Erros de um item não interrompem os demais; são reportados em onResult.
-export const runQueue = async (items, worker, { concurrency = 4, onResult, signal } = {}) => {
+export const runQueue = async (items, worker, { concurrency = DEFAULT_CONCURRENCY, onResult, signal } = {}) => {
   let next = 0;
   const runners = Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, async () => {
     while (next < items.length) {
@@ -131,7 +133,7 @@ export const runQueue = async (items, worker, { concurrency = 4, onResult, signa
         if (error?.name === 'AbortError') return;
         onResult?.(item, null, error);
         // Chave inválida: não adianta continuar
-        if (error?.code === 'auth') throw error;
+        if (['auth', 'chatgpt-auth', 'chatgpt-service'].includes(error?.code)) throw error;
       }
     }
   });

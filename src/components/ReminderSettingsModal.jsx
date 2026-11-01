@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from 'react-i18next';
 import { X, Bell } from "lucide-react";
+import { DialogPanel } from "./Dialog.jsx";
 
 const PRESET_OPTIONS = [5, 10, 15, 30];
 
@@ -26,18 +27,19 @@ export function ReminderSettingsModal({ currentMinutes = 10, onConfirm, onClose 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50 p-4">
-      <div className="w-80 sm:w-[26rem] md:w-[30rem] bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700">
+      <DialogPanel onClose={onClose} labelledBy="reminder-settings-title" className="w-80 sm:w-[26rem] md:w-[30rem] bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700">
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2 sm:gap-3">
             <Bell className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600 dark:text-indigo-400" />
-            <p className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white">
+            <h2 id="reminder-settings-title" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white">
               {t('modals.reminder.title')}
-            </p>
+            </h2>
           </div>
           <button
             onClick={onClose}
+            aria-label={t('modals.close')}
             className="p-1 sm:p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition-colors"
           >
             <X className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -69,11 +71,11 @@ export function ReminderSettingsModal({ currentMinutes = 10, onConfirm, onClose 
 
           {/* Custom input */}
           <div>
-            <label className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2 block">
+            <label htmlFor="reminder-custom" className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2 block">
               {t('modals.reminder.custom')}
             </label>
             <div className="flex items-center gap-2">
-              <input
+              <input id="reminder-custom"
                 type="number"
                 min={1}
                 max={60}
@@ -83,7 +85,7 @@ export function ReminderSettingsModal({ currentMinutes = 10, onConfirm, onClose 
                 className={`flex-1 px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors
                   bg-white dark:bg-gray-700 text-gray-800 dark:text-white
                   placeholder-gray-400 dark:placeholder-gray-500
-                  focus:outline-none focus:ring-2 focus:ring-indigo-500
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
                   ${custom && !isValid
                     ? "border-red-400 dark:border-red-500"
                     : "border-gray-200 dark:border-gray-600"
@@ -129,7 +131,7 @@ export function ReminderSettingsModal({ currentMinutes = 10, onConfirm, onClose 
             {t('multiSelect.confirm')}
           </button>
         </div>
-      </div>
+      </DialogPanel>
     </div>
   );
 }

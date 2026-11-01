@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback, forwardRef, useMemo, useImper
 import { createRoot } from 'react-dom/client';
 import { useTranslation } from 'react-i18next';
 import { ChartArea, Download, X, Map, Earth, Network, BarChart3, HelpCircle, Info } from 'lucide-react';
+import { DialogPanel } from './Dialog.jsx';
 import {
   Line, Bar, Cell, Pie, PieChart, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ComposedChart, BarChart,
@@ -521,18 +522,19 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50 p-4">
-      <div className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 max-h-[92vh] flex flex-col">
+      <DialogPanel onClose={onClose} labelledBy="export-config-title" className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 max-h-[92vh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2 sm:gap-3">
             <Download className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600 dark:text-indigo-400" />
-            <p className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white">
+            <h2 id="export-config-title" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white">
               {t('stats.exportConfigTitle', 'Configurar Exportação')}
-            </p>
+            </h2>
           </div>
           <button
             onClick={onClose}
+            aria-label={t('modals.close')}
             className="p-1 sm:p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition-colors"
           >
             <X className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -543,19 +545,19 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
         <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto">
           <div className="flex gap-2 sm:gap-3">
             <div className="flex-1">
-              <label className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2 block">{t('stats.widthMm', 'Largura (mm)')}</label>
-              <input type="number" value={widthMm} min={10} max={150} onChange={e => handleWidthChange(e.target.value)}
-                className="w-full px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 border-gray-200 dark:border-gray-600" />
+              <label htmlFor="export-width-mm" className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2 block">{t('stats.widthMm', 'Largura (mm)')}</label>
+              <input id="export-width-mm" type="number" value={widthMm} min={10} max={150} onChange={e => handleWidthChange(e.target.value)}
+                className="w-full px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border-gray-200 dark:border-gray-600" />
             </div>
             <div className="flex-1">
-              <label className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2 block">{t('stats.heightMm', 'Altura (mm)')}</label>
-              <input type="number" value={heightMm} min={10} max={150} onChange={e => handleHeightChange(e.target.value)} disabled={keepRatio && !lockedAspect}
-                className={`w-full px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 border-gray-200 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed`} />
+              <label htmlFor="export-height-mm" className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2 block">{t('stats.heightMm', 'Altura (mm)')}</label>
+              <input id="export-height-mm" type="number" value={heightMm} min={10} max={150} onChange={e => handleHeightChange(e.target.value)} disabled={keepRatio && !lockedAspect}
+                className={`w-full px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border-gray-200 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed`} />
             </div>
             <div className="w-24">
-              <label className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2 block">{t('stats.fontPt', 'Fonte (pt)')}</label>
-              <input type="number" min={6} max={24} value={fontPt} onChange={e => { setExportWarning(null); setFontPt(e.target.value); }}
-                className="w-full px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 border-gray-200 dark:border-gray-600" />
+              <label htmlFor="export-font-pt" className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2 block">{t('stats.fontPt', 'Fonte (pt)')}</label>
+              <input id="export-font-pt" type="number" min={6} max={24} value={fontPt} onChange={e => { setExportWarning(null); setFontPt(e.target.value); }}
+                className="w-full px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border-gray-200 dark:border-gray-600" />
             </div>
           </div>
 
@@ -575,9 +577,9 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
 
           {getSvg && (
             <div>
-              <label className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 block">
+              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 block">
                 {t('stats.preview', 'Pré-visualização')}
-              </label>
+              </span>
               <div className="rounded-lg border border-gray-200 dark:border-gray-600 p-2 bg-white overflow-hidden">
                 {previewLoading && (
                   <div className="flex items-center justify-center py-8 text-xs text-gray-400 gap-2">
@@ -630,7 +632,7 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
             {t('stats.exportButton', 'Exportar')}
           </button>
         </div>
-      </div>
+      </DialogPanel>
     </div>
   );
 };
@@ -651,18 +653,19 @@ const NetworkHelpModal = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50 p-4">
-      <div className="w-full sm:w-[26rem] md:w-[30rem] bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
+      <DialogPanel onClose={onClose} labelledBy="network-help-title" className="w-full sm:w-[26rem] md:w-[30rem] bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2 sm:gap-3">
             <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600 dark:text-indigo-400" />
-            <p className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white">
+            <h2 id="network-help-title" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white">
               {t('stats.networkHelpTitle')}
-            </p>
+            </h2>
           </div>
           <button
             onClick={onClose}
+            aria-label={t('modals.close')}
             className="p-1 sm:p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition-colors"
           >
             <X className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -695,7 +698,7 @@ const NetworkHelpModal = ({ isOpen, onClose }) => {
             {t('modals.alert.ok')}
           </button>
         </div>
-      </div>
+      </DialogPanel>
     </div>
   );
 };
@@ -1025,7 +1028,7 @@ const ChartExport = ({ id, isOpen, onToggle, chartRef, data, svgOnly = false }) 
   return (
     <div className="relative">
       <button onClick={() => onToggle(id)} title={t('stats.exportChart')}
-        className="bg-gray-800 dark:bg-gray-600 border-none rounded-full p-1.5 cursor-pointer transition-all duration-200 hover:scale-110 flex items-center justify-center"
+        className="bg-gray-800 dark:bg-gray-600 border-none rounded-full p-1.5 cursor-pointer transition duration-200 hover:scale-110 flex items-center justify-center"
         style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
         {isOpen ? <X size={12} color="white" /> : <Download size={12} color="white" />}
       </button>
@@ -1056,7 +1059,7 @@ const SourcePicker = ({ slotId, currentSource, sources, usedSources, isOpen, onT
         onClick={() => onToggle(pickerId)}
         title={t('stats.changeSource')}
         className="bg-indigo-600 dark:bg-indigo-500 border-none rounded-full px-2.5 py-1 cursor-pointer
-                   transition-all duration-200 hover:scale-110 hover:bg-indigo-500 flex items-center"
+                   transition duration-200 hover:scale-110 hover:bg-indigo-500 flex items-center"
       >
         <span className="text-[11px] text-white font-semibold leading-none">{displaySource(currentSource)}</span>
       </button>
@@ -1097,7 +1100,7 @@ const MultiToggle = ({ options, selected, onToggle, label }) => (
       const renderLabel = label ? label(opt) : opt;
       return (
         <button key={opt} onClick={() => onToggle(opt)}
-          className={`px-3 py-1 text-xs sm:text-sm rounded-md font-medium transition-all duration-150 cursor-pointer border-none
+          className={`px-3 py-1 text-xs sm:text-sm rounded-md font-medium transition duration-150 cursor-pointer border-none
             ${active
               ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
               : 'text-gray-500 dark:text-gray-400 bg-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}
@@ -1361,7 +1364,7 @@ const ClusterHeatmap = ({ similarityMatrix, clusterNames, theme }) => {
             fill={theme === 'dark' ? '#9ca3af' : '#374151'}
             transform={`rotate(-45, ${120 + i * cellSize + cellSize / 2}, ${size * cellSize + 20})`}
           >
-            {name.length > 10 ? name.slice(0, 10) + '...' : name}
+            {name.length > 10 ? name.slice(0, 10) + '…' : name}
           </text>
         ))}
         {/* Row headers */}
@@ -1374,7 +1377,7 @@ const ClusterHeatmap = ({ similarityMatrix, clusterNames, theme }) => {
             fontSize={10}
             fill={theme === 'dark' ? '#9ca3af' : '#374151'}
           >
-            {name.length > 12 ? name.slice(0, 12) + '...' : name}
+            {name.length > 12 ? name.slice(0, 12) + '…' : name}
           </text>
         ))}
         {/* Cells */}
@@ -1527,10 +1530,10 @@ const ClusterNetwork = ({ clusterData, similarityMatrix, theme }) => {
   return (
     <div>
       <div className="flex items-center gap-4 mb-4">
-        <label className="text-sm text-gray-600 dark:text-gray-400">
+        <label htmlFor="sim-threshold" className="text-sm text-gray-600 dark:text-gray-400">
           Limiar de similaridade: {simThreshold.toFixed(2)}
         </label>
-        <input
+        <input id="sim-threshold"
           type="range"
           min="0"
           max="0.8"
@@ -1607,7 +1610,7 @@ const ClusterNetwork = ({ clusterData, similarityMatrix, theme }) => {
                 fontSize={10}
                 fill={textColor}
               >
-                {cluster.name.length > 15 ? cluster.name.slice(0, 15) + '...' : cluster.name}
+                {cluster.name.length > 15 ? cluster.name.slice(0, 15) + '…' : cluster.name}
               </text>
             </g>
           );
@@ -1667,7 +1670,7 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
     <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl mb-6 w-fit">
       {TABS.map(tab => (
         <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-150 cursor-pointer border-none
+          className={`px-5 py-2 rounded-lg text-sm font-semibold transition duration-150 cursor-pointer border-none
             ${activeTab === tab.id
               ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
               : 'text-gray-500 dark:text-gray-400 bg-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}
@@ -2058,7 +2061,7 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
     if (str.length <= max) return toTitleCase(str);
     const m = str.match(/\b([A-Z]{2,})\s*(\d{4})\b/); if (m) return `${m[1]} ${m[2]}`;
     const s = str.match(/\b([A-Z]{3,})\b/); if (s) return s[1];
-    return toTitleCase(str.slice(0, max).trimEnd()) + '...';
+    return toTitleCase(str.slice(0, max).trimEnd()) + '…';
   };
 
   const toExportId = (title, source) =>
@@ -2299,19 +2302,19 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
               controls={
                 <div className="flex items-center gap-2">
                   {/* Botão: mapa de países */}
-                  <button
+                  <button aria-label={countryView === 'map' ? t('stats.backToChart') : t('stats.mapByCountry')}
                     onClick={() => setCountryView(countryView === 'map' ? 'bar' : 'map')}
                     title={countryView === 'map' ? t('stats.backToChart') : t('stats.mapByCountry')}
-                    className={`rounded-full p-1.5 cursor-pointer transition-all duration-200 hover:scale-110 flex items-center justify-center border-none
+                    className={`rounded-full p-1.5 cursor-pointer transition duration-200 hover:scale-110 flex items-center justify-center border-none
                       ${countryView === 'map' ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-gray-800 dark:bg-gray-600'}`}
                   >
                     <Map size={12} color="white" />
                   </button>
                   {/* Botão: mapa de continentes */}
-                  <button
+                  <button aria-label={countryView === 'continent' ? t('stats.backToChart') : t('stats.mapByContinent')}
                     onClick={() => setCountryView(countryView === 'continent' ? 'bar' : 'continent')}
                     title={countryView === 'continent' ? t('stats.backToChart') : t('stats.mapByContinent')}
-                    className={`rounded-full p-1.5 cursor-pointer transition-all duration-200 hover:scale-110 flex items-center justify-center border-none
+                    className={`rounded-full p-1.5 cursor-pointer transition duration-200 hover:scale-110 flex items-center justify-center border-none
                       ${countryView === 'continent' ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-gray-800 dark:bg-gray-600'}`}
                     style={{ width: 24, height: 24, fontSize: 11 }}
                   >
@@ -2327,7 +2330,7 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                         onChange={e => setTopNCountries(Math.min(Math.max(Number(e.target.value), 1), Math.max(1, countriesCount.length)))}
                         className="w-14 text-center text-xs rounded-md border border-gray-300 dark:border-gray-600
                                    bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
-                                   focus:outline-none focus:ring-2 focus:ring-indigo-500 px-1 py-1" />
+                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 px-1 py-1" />
                     </>
                   )}
                 </div>
@@ -2377,7 +2380,7 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                     onChange={e => setTopNJournals(Math.min(Math.max(Number(e.target.value), 1), Math.max(1, journalCount.length)))}
                     className="w-14 text-center text-xs rounded-md border border-gray-300 dark:border-gray-600
                                bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
-                               focus:outline-none focus:ring-2 focus:ring-indigo-500 px-1 py-1" />
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 px-1 py-1" />
                 </div>
               }
             >
@@ -2419,7 +2422,7 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                   onChange={e => setScoreBinSize(Math.min(Math.max(Number(e.target.value), 1), 5))}
                   className="w-14 text-center text-xs rounded-md border border-gray-300 dark:border-gray-600
                              bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
-                             focus:outline-none focus:ring-2 focus:ring-indigo-500 px-1 py-1" />
+                             focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 px-1 py-1" />
               </div>
             ),
             renderChart: (slot, chartRef) => {
@@ -2843,11 +2846,11 @@ const NetworkTab = ({ articles, theme }) => {
     <div>
       <div className="flex flex-wrap items-center gap-4 mb-6">
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.networkLabel')}</label>
-          <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+          <span id="network-type-label" className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.networkLabel')}</span>
+          <div role="group" aria-labelledby="network-type-label" className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
             <button
               onClick={() => setNetworkType('coauthorship')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${networkType === 'coauthorship'
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${networkType === 'coauthorship'
                 ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
@@ -2856,7 +2859,7 @@ const NetworkTab = ({ articles, theme }) => {
             </button>
             <button
               onClick={() => setNetworkType('keywords')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${networkType === 'keywords'
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${networkType === 'keywords'
                 ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
@@ -2867,11 +2870,11 @@ const NetworkTab = ({ articles, theme }) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.countingLabel')}</label>
-          <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+          <span id="network-counting-label" className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.countingLabel')}</span>
+          <div role="group" aria-labelledby="network-counting-label" className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
             <button
               onClick={() => setCountingMethod('fractional')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${countingMethod === 'fractional'
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${countingMethod === 'fractional'
                 ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
@@ -2880,7 +2883,7 @@ const NetworkTab = ({ articles, theme }) => {
             </button>
             <button
               onClick={() => setCountingMethod('full')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${countingMethod === 'full'
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${countingMethod === 'full'
                 ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
@@ -2891,11 +2894,11 @@ const NetworkTab = ({ articles, theme }) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.viewLabel')}</label>
-          <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+          <span id="network-view-label" className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.viewLabel')}</span>
+          <div role="group" aria-labelledby="network-view-label" className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
             <button
               onClick={() => setViewMode('network')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'network'
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === 'network'
                 ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
@@ -2904,7 +2907,7 @@ const NetworkTab = ({ articles, theme }) => {
             </button>
             <button
               onClick={() => setViewMode('density')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'density'
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === 'density'
                 ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
@@ -2919,7 +2922,7 @@ const NetworkTab = ({ articles, theme }) => {
             onClick={() => setNetworkHelpOpen(true)}
             title={t('stats.networkHelp')}
             aria-label={t('stats.networkHelp')}
-            className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-full p-1.5 cursor-pointer transition-all duration-200 flex items-center justify-center"
+            className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-full p-1.5 cursor-pointer transition duration-200 flex items-center justify-center"
           >
             <HelpCircle size={16} />
           </button>
@@ -2928,33 +2931,33 @@ const NetworkTab = ({ articles, theme }) => {
 
       <div className="flex flex-wrap items-center gap-4 mb-6">
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{countLabel} {t('stats.minCountSuffix')}</label>
-          <input
+          <label htmlFor="network-min-count" className="text-sm font-medium text-gray-700 dark:text-gray-300">{countLabel} {t('stats.minCountSuffix')}</label>
+          <input id="network-min-count"
             type="number"
             min="1"
             max="50"
             value={minOccurrences}
             onChange={(e) => setMinOccurrences(Math.max(1, parseInt(e.target.value) || 1))}
-            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.topNLabel')}</label>
-          <input
+          <label htmlFor="network-top-n" className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.topNLabel')}</label>
+          <input id="network-top-n"
             type="number"
             min="0"
             max="500"
             value={topN}
             onChange={(e) => setTopN(Math.max(0, parseInt(e.target.value) || 0))}
-            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           />
           <span className="text-xs text-gray-500 dark:text-gray-400">{t('stats.topNHint')}</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.labelPositionLabel')}</label>
-          <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+          <span id="network-label-position" className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.labelPositionLabel')}</span>
+          <div role="group" aria-labelledby="network-label-position" className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
             {[
               { value: 'above', label: t('stats.labelAbove') },
               { value: 'center', label: t('stats.labelCenter') },
@@ -2963,7 +2966,7 @@ const NetworkTab = ({ articles, theme }) => {
               <button
                 key={opt.value}
                 onClick={() => setLabelPosition(opt.value)}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${labelPosition === opt.value
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${labelPosition === opt.value
                   ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                   }`}
@@ -2976,8 +2979,8 @@ const NetworkTab = ({ articles, theme }) => {
 
         {networkType === 'keywords' && (
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.opacityLabel')}</label>
-            <input
+            <label htmlFor="network-opacity" className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.opacityLabel')}</label>
+            <input id="network-opacity"
               type="range"
               min="0"
               max="100"
@@ -2994,7 +2997,7 @@ const NetworkTab = ({ articles, theme }) => {
                 max="100"
                 value={labelOpacityThreshold}
                 onChange={(e) => setLabelOpacityThreshold(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                className="w-16 px-2 py-1.5 pr-5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-16 px-2 py-1.5 pr-5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500 pointer-events-none">%</span>
             </div>
@@ -3002,13 +3005,13 @@ const NetworkTab = ({ articles, theme }) => {
         )}
 
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.search')}</label>
-          <input
+          <label htmlFor="network-search" className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.search')}</label>
+          <input id="network-search"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={networkType === 'keywords' ? t('stats.searchPlaceholderKeywords') : t('stats.searchPlaceholder')}
-            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           />
         </div>
 
@@ -3064,7 +3067,7 @@ const NetworkTab = ({ articles, theme }) => {
               <button
                 onClick={() => setExportMenuOpen(v => !v)}
                 title={t('stats.export')}
-                className="bg-gray-800 dark:bg-gray-600 border-none rounded-full p-1.5 cursor-pointer transition-all duration-200 hover:scale-110 flex items-center justify-center"
+                className="bg-gray-800 dark:bg-gray-600 border-none rounded-full p-1.5 cursor-pointer transition duration-200 hover:scale-110 flex items-center justify-center"
                 style={{ transform: exportMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
               >
                 {exportMenuOpen ? <X size={12} color="white" /> : <Download size={12} color="white" />}
@@ -3123,7 +3126,7 @@ const NetworkTab = ({ articles, theme }) => {
         <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700">
           <div className="flex justify-between items-start mb-3">
             <h4 className="font-semibold text-gray-800 dark:text-gray-200">{selectedNode.label}</h4>
-            <button
+            <button aria-label={t('modals.close')}
               onClick={() => setSelectedNode(null)}
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >

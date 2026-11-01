@@ -25,3 +25,15 @@ dist-ssr
 
 # Resultados do benchmark
 benchmark/results*/
+
+.local/
+lint-before.log
+lint-after.log
+
+lint-evolution-*.json
+.env
+.env.*
+!.env.example
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/

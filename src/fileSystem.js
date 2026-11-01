@@ -1,11 +1,17 @@
+import { normalizeScoreZeroHistory } from './scoreZeroHistory.js';
 // fileSystem.js - Sistema de salvamento e abertura de arquivos
 
 // Versão atual do schema do arquivo
-const CURRENT_SCHEMA_VERSION = "1.3.0";
+const CURRENT_SCHEMA_VERSION = "1.5.0";
 export const APP_VERSION = CURRENT_SCHEMA_VERSION;
 
 // Schemas de versões para compatibilidade retroativa
 const SCHEMA_VERSIONS = {
+  "1.5.0": {
+    requiredFields: ["version", "protocol", "articles", "statistics", "metadata"],
+    // Historical suggestions remain untouched. New optional fields carry the v2 evidence contract.
+    migrations: [data => ({ ...data, version: "1.5.0" })]
+  },
   "1.0.0": {
     requiredFields: ["version", "protocol", "articles", "statistics", "metadata"],
     migrations: []
@@ -17,6 +23,10 @@ const SCHEMA_VERSIONS = {
   "1.2.0": {
     requiredFields: ["version", "protocol", "articles", "statistics", "metadata"],
     migrations: [migrateFrom1_1_0to1_2_0]
+  },
+  "1.4.0": {
+    requiredFields: ["version", "protocol", "articles", "statistics", "metadata"],
+    migrations: [data => ({ ...data, version: "1.4.0", scoreZeroHistory: normalizeScoreZeroHistory(data.scoreZeroHistory) })]
   },
   "1.3.0": {
     requiredFields: ["version", "protocol", "articles", "statistics", "metadata"],
@@ -204,6 +214,7 @@ const addMissingFields = (data) => {
   return {
     ...defaultState, // valores padrão primeiro
     ...data, // dados carregados sobrescrevem os padrão
+    scoreZeroHistory: normalizeScoreZeroHistory(data.scoreZeroHistory),
     protocol: {
       ...defaultState.protocol,
       ...data.protocol
@@ -222,6 +233,7 @@ const buildSaveData = (state) => ({
   version: CURRENT_SCHEMA_VERSION,
   protocol: state.protocol,
   articles: state.articles,
+  scoreZeroHistory: normalizeScoreZeroHistory(state.scoreZeroHistory),
   statistics: state.statistics,
   metadata: {
     savedAt: new Date().toISOString(),
@@ -516,6 +528,7 @@ export const setupAutoSave = (getState, intervalMinutes = 5) => {
       if (state.articles.length > 0 || state.protocol.title.trim()) {
         const autoSaveData = {
           ...state,
+          version: CURRENT_SCHEMA_VERSION,
           metadata: {
             ...state.metadata,
             autoSavedAt: new Date().toISOString(),

@@ -1,3 +1,6 @@
+import { evaluateChatgpt } from './chatgptClient.js';
+import { validateAnswers } from './answerContract.js';
+import { ADAPTER_VERSION, providerModel, selectedEffort, validateEffort, requiresReevaluation } from './modelCapabilities.js';
 // screening.js - Converte critérios do protocolo em perguntas do Jev e
 // combina as respostas em uma sugestão de decisão (funções puras)
 
@@ -10,7 +13,7 @@ export const STAGES = ['filter1', 'filter2', 'filter3'];
 //   aplica exclusões em lote só com p(exclusão) >= excludeAt
 // - strict (Filtros 2 e 3): exige p >= 0,5 em todos os critérios e aplica em lote com p >= applyAt
 export const DEFAULT_RULES = {
-  filter1: { mode: 'inclusive', includeAt: 0.2, excludeAt: 0.95 },
+  filter1: { mode: 'inclusive', includeAt: 0.2, excludeAt: 0.55 },
   filter2: { mode: 'strict', applyAt: 0.95 },
   filter3: { mode: 'strict', applyAt: 0.975 },
 };
@@ -138,6 +141,7 @@ export const buildState = (article, stage, fullText = null) => {
   }
   return base;
 };
+export const inputHash = (article, stage, fullText = null) => hashString(JSON.stringify(buildState(article, stage, fullText)));
 
 const fieldList = (stage) => {
   const fields = STAGE_FIELDS[stage].map(f => `\`${f}\``);
@@ -208,6 +212,17 @@ export const decide = (answers, index, stage, aiConfig) => {
   const inclusion = {};
   const exclusion = {};
   const quality = {};
+  const unassessed = [];
+  const evidence = {};
+
+  const questions = Object.fromEntries(Object.entries(index).map(([id, c]) => [id, { type: c.category === 'quality' ? 'score' : 'noul' }]));
+  // Validate completeness even when recomputing old saved suggestions.
+  Object.entries(index).forEach(([qid, criterion]) => {
+    const answer = answers?.[qid];
+    if (answer?.status === 'insufficient-evidence') unassessed.push({ ...criterion, ...(answer.reason ? { reason: answer.reason } : {}) });
+    else validateAnswers({ [qid]: answer }, { [qid]: questions[qid] });
+    if (answer?.evidence) evidence[qid] = answer.evidence;
+  });
 
   Object.entries(index).forEach(([qid, criterion]) => {
     const answer = answers?.[qid];
@@ -227,6 +242,9 @@ export const decide = (answers, index, stage, aiConfig) => {
 
   const rule = aiConfig.rules?.[stage] ?? DEFAULT_RULES[stage];
   const inclusive = rule.mode === 'inclusive';
+  // Early screening may advance a study while exclusion checks remain pending.
+  // Missing inclusion evidence or a rejected quote still requires manual review.
+  const canAdvanceWithPendingChecks = stage === 'filter1' && inclusive && unassessed.every(c => c.category === 'exclusion' && c.reason !== 'evidence-not-found');
 
   let decision = 'uncertain';
   let confidence = 0;
@@ -237,7 +255,9 @@ export const decide = (answers, index, stage, aiConfig) => {
     .filter(([, p]) => p >= (inclusive ? rule.includeAt : 0.5))
     .map(([id]) => criterionById('inclusion', id));
 
-  if (inclusive && incValues.length && pIncMin >= rule.includeAt && pExcMax < 0.5) {
+  if (unassessed.length && pExcMax < 0.5 && !canAdvanceWithPendingChecks) {
+    decision = 'uncertain';
+  } else if (inclusive && incValues.length && pIncMin >= rule.includeAt && pExcMax < 0.5) {
     // Filtro 1 inclusivo: basta indício de atender à inclusão sem nenhum critério de exclusão
     decision = 'included';
     probability = pIncMin;
@@ -279,24 +299,34 @@ export const decide = (answers, index, stage, aiConfig) => {
     decision,
     confidence,
     probability,
-    relevance: Math.round(pIncMin * (1 - pExcMax) * 1e6) / 1e6,
+    relevance: unassessed.length ? null : Math.round(pIncMin * (1 - pExcMax) * 1e6) / 1e6,
     criteria: criteria.filter(Boolean),
     inclusion,
     exclusion,
     quality,
-    unmetInclusion: Object.entries(inclusion).filter(([, p]) => p < 0.5).map(([id]) => id),
+    provisionalInclusion: decision === 'included' && unassessed.length > 0,
+    ...(unassessed.length ? { unassessed } : {}),
+    ...(Object.keys(evidence).length ? { evidence } : {}),
+    unmetInclusion: Object.entries(inclusion).filter(([, p]) => Number.isFinite(p) && p < 0.5).map(([id]) => id),
   };
 };
 
 // Avalia um artigo em um filtro e devolve a sugestão a ser salva no artigo
 export const evaluateArticle = async ({ article, protocol, stage, settings, fullText = null, signal }) => {
   const aiConfig = getAiConfig(protocol);
+  const provider = settings.provider || 'jev';
+  const model = providerModel(settings, protocol);
+  const effort = selectedEffort(settings, model);
+  validateEffort(provider, model, effort);
+  const started = Date.now();
   const base = {
-    model: aiConfig.model,
+    provider, model, adapterVersion: ADAPTER_VERSION, contractVersion: 2,
+    requestedEffort: effort,
     evaluatedAt: new Date().toISOString(),
     criteriaHash: criteriaHash(protocol, stage),
     textHash: textHash(fullText),
     fieldsUsed: STAGE_FIELDS[stage],
+    inputHash: inputHash(article, stage, fullText),
   };
 
   if (!hasEnoughText(article, stage, fullText)) {
@@ -309,28 +339,33 @@ export const evaluateArticle = async ({ article, protocol, stage, settings, full
   }
 
   const state = buildState(article, stage, fullText);
-  const response = await evaluate({
+  const response = await (provider === 'chatgpt' ? evaluateChatgpt : evaluate)({
     apiKey: settings.apiKey,
     baseUrl: settings.baseUrl,
-    model: aiConfig.model,
+    model: base.model,
     state,
     questions,
     longContext: settings.longContext,
     signal,
+    effort,
+    connectionId: settings.connectionId,
   });
 
-  const result = decide(response.answers, index, stage, aiConfig);
+  const answers = validateAnswers(response.answers, questions, { generative: provider !== 'jev', state });
+  const result = decide(answers, index, stage, aiConfig);
   return {
-    suggestion: { ...base, model: response.model || aiConfig.model, ...result },
+    suggestion: { ...base, model: response.model || base.model, ...result, durationMs: Date.now() - started,
+      ...(response.effectiveEffort != null ? { effectiveEffort: response.effectiveEffort } : {}) },
     usage: response.usage ?? null,
   };
 };
 
 // Sugestão ainda válida para os critérios (e texto) atuais?
-export const isSuggestionStale = (suggestion, protocol, stage, fullText = null) => {
+export const isSuggestionStale = (suggestion, protocol, stage, fullText = null, article = null) => {
   if (!suggestion) return false;
   if (suggestion.criteriaHash !== criteriaHash(protocol, stage)) return true;
   if (stage !== 'filter1' && suggestion.textHash !== textHash(fullText)) return true;
+  if (suggestion.inputHash && (!article || suggestion.inputHash !== inputHash(article, stage, fullText))) return true;
   return false;
 };
 
@@ -342,8 +377,13 @@ export const withCurrentRules = (suggestion, protocol, stage) => {
   Object.entries(suggestion.inclusion ?? {}).forEach(([id, p]) => { answers[`inc_${id}`] = { noul: p }; });
   Object.entries(suggestion.exclusion ?? {}).forEach(([id, p]) => { answers[`exc_${id}`] = { noul: p }; });
   Object.entries(suggestion.quality ?? {}).forEach(([id, q]) => { answers[`q_${id}`] = q; });
+  (suggestion.unassessed || []).forEach(c => {
+    const prefix = c.category === 'inclusion' ? 'inc' : c.category === 'exclusion' ? 'exc' : 'q';
+    answers[`${prefix}_${c.id}`] = { ...answers[`${prefix}_${c.id}`], status: 'insufficient-evidence', ...(c.reason ? { reason: c.reason } : {}) };
+  });
   const { index } = buildQuestions(protocol, stage);
-  return { ...suggestion, ...decide(answers, index, stage, getAiConfig(protocol)) };
+  try { return { ...suggestion, ...decide(answers, index, stage, getAiConfig(protocol)) }; }
+  catch { return { ...suggestion, decision: 'uncertain', probability: null, confidence: 0, invalidResponse: true }; }
 };
 
 // Probabilidade que determinou a decisão (sugestões antigas guardavam só a confiança)
@@ -354,9 +394,20 @@ export const suggestionProbability = (suggestion) => {
   return (1 + (suggestion.confidence ?? 0)) / 2;
 };
 
+// Partial assessments may be applied individually or in a confirmed batch.
+export const hasActionableDecision = suggestion => {
+  if (!suggestion || suggestion.invalidResponse || !['included', 'excluded'].includes(suggestion.decision)) return false;
+  if (!suggestion.unassessed?.length) return true;
+  if (suggestion.decision === 'included') return suggestion.provisionalInclusion === true &&
+    suggestion.unassessed.every(c => c.category === 'exclusion' && c.reason !== 'evidence-not-found') &&
+    Object.values(suggestion.inclusion || {}).length > 0 && Object.values(suggestion.inclusion).every(p => Number.isFinite(p));
+  return suggestion.decision === 'excluded' && Object.values(suggestion.exclusion || {}).some(p => Number.isFinite(p) && p >= 0.5);
+};
+
 // Escore de relevância: min p(inclusão) × (1 − max p(exclusão))
 export const relevanceOf = (suggestion) => {
   if (!suggestion) return null;
+  if (suggestion.unassessed?.length || suggestion.invalidResponse) return null;
   if (typeof suggestion.relevance === 'number') return suggestion.relevance;
   const inc = Object.values(suggestion.inclusion ?? {});
   const exc = Object.values(suggestion.exclusion ?? {});
@@ -366,8 +417,7 @@ export const relevanceOf = (suggestion) => {
 
 // Pode ser aplicada automaticamente no lote?
 export const isAutoApplicable = (suggestion, protocol, stage) => {
-  if (!suggestion) return false;
-  if (suggestion.decision !== 'included' && suggestion.decision !== 'excluded') return false;
+  if (!hasActionableDecision(suggestion) || requiresReevaluation(suggestion)) return false;
   const rule = getAiConfig(protocol).rules[stage];
   const p = suggestionProbability(suggestion);
   if (p === null) return false;

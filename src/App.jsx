@@ -1,5 +1,10 @@
-import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Filter, ChartArea, Download, Table, Upload, CheckCircle, Check, XCircle, BookCopy, List, Clock, BarChart3, FileText, Database, RefreshCw, Settings, Sun, Moon, Bell, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Eye, PlusCircle, X, CopyX, CopyCheck, HeartHandshake, Languages, Save, ListChecks, Info, GraduationCap } from 'lucide-react';
+import React, { useRef, useState, useEffect, useMemo, useCallback, useReducer, useSyncExternalStore, useLayoutEffect } from 'react';
+import { createEvaluationController, applicableSuggestion, articleText, stageIsPending } from './ai/evaluationController.js';
+import { mergeEvaluationEntries, applyAiSuggestions } from './ai/evaluationState.js';
+import { requiresReevaluation } from './ai/modelCapabilities.js';
+import { duplicateDoiKey, duplicateTitleKey } from './duplicates.js';
+import { initialArticleState, articleReducer, nextProcessingRevision, canRestoreScoreZero, eligibleForScoreZero } from './scoreZeroHistory.js';
+import { Search, Filter, ChartArea, Download, Table, Upload, CheckCircle, Check, XCircle, BookCopy, List, Clock, BarChart3, FileText, Database, RefreshCw, Settings, Sun, Moon, Bell, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Eye, PlusCircle, X, CopyX, CopyCheck, HeartHandshake, Languages, Save, ListChecks, Info, GraduationCap, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SvgIcon } from './icons/SysReviewIcon.jsx';
 
@@ -19,10 +24,14 @@ import { AlertModal } from "./components/AlertModal.jsx";
 import { AutoSaveOfferModal } from "./components/AutoSaveOfferModal.jsx";
 import { JevSettingsModal } from "./components/JevSettingsModal.jsx";
 import { JevBatchModal, JevApplyModal } from "./components/JevBatchModal.jsx";
-import { SuggestionBadge } from "./components/SuggestionPanel.jsx";
+import { ArticleStatusFilter } from "./components/ArticleStatusFilter.jsx";
+import { DialogPanel } from "./components/Dialog.jsx";
+import { ConfirmDialog, InlineConfirm } from "./components/ConfirmDialog.jsx";
+import { aiReviewState } from "./ai/review.js";
+import { SuggestionBadge, AiReviewNotice } from "./components/SuggestionPanel.jsx";
 import { jevErrorMessage, suggestionTooltip } from "./ai/messages.js";
 import { loadJevSettings, saveJevSettings } from "./ai/jevClient.js";
-import { STAGES, evaluateArticle, getAiConfig, isAutoApplicable, isSuggestionStale, relevanceOf, suggestionProbability, autoRuleSummary, withCurrentRules } from "./ai/screening.js";
+import { STAGES, getAiConfig, isSuggestionStale, relevanceOf, suggestionProbability, autoRuleSummary, withCurrentRules, hasActionableDecision } from "./ai/screening.js";
 
 import {
   saveProjectToFile,
@@ -52,6 +61,7 @@ const useTheme = () => {
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111827' : '#eff6ff');
     localStorage.setItem('theme', theme);
   }, [theme]);
 
@@ -84,7 +94,7 @@ const ThemeToggle = ({ theme, toggleTheme }) => {
 const LanguageSelector = () => {
   const { i18n } = useTranslation();
   return (
-    <button
+    <button aria-label={i18n.language === 'pt' ? 'English' : 'Português'}
       data-tour="language"
       onClick={() => i18n.changeLanguage(i18n.language === 'pt' ? 'en' : 'pt')}
       className="px-2 py-2 rounded-lg flex items-center justify-center transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
@@ -393,7 +403,7 @@ const importedPubmedArticles = (pubmedContent, source = 'PubMed', numString = 1,
   return importedArticles.filter(article => !article.title.startsWith('Título não encontrado'));
 };
 
-const Overlay = ({ children, footer, onClose }) => {
+const Overlay = ({ children, footer, onClose, labelledBy }) => {
   const [visible, setVisible] = useState(false);
   const [translateY, setTranslateY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -457,7 +467,7 @@ const Overlay = ({ children, footer, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
       onClick={() => closeWithAnimation()}
       style={{
         backgroundColor: 'rgba(0,0,0,0.5)',
@@ -465,7 +475,9 @@ const Overlay = ({ children, footer, onClose }) => {
         transition: 'opacity 0.3s ease',
       }}
     >
-      <div
+      <DialogPanel
+        onClose={closeWithAnimation}
+        labelledBy={labelledBy}
         className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-xl w-full sm:max-w-3xl flex flex-col transition-colors duration-200"
         style={sheetStyle}
         onClick={(e) => e.stopPropagation()}
@@ -479,7 +491,7 @@ const Overlay = ({ children, footer, onClose }) => {
           onTouchEnd={onHandleTouchEnd}
         >
           <div
-            className="rounded-full transition-all duration-150"
+            className="rounded-full transition-[width,background-color] duration-150 motion-reduce:transition-none"
             style={{
               width: isDragging ? '52px' : '40px',
               height: '4px',
@@ -490,7 +502,7 @@ const Overlay = ({ children, footer, onClose }) => {
 
         {children}
         {footer}
-      </div>
+      </DialogPanel>
     </div>
   );
 };
@@ -582,18 +594,19 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
     return (
       <Overlay
         onClose={onClose}
+        labelledBy="multiselect-criteria-title"
         footer={
           <div className="flex-shrink-0 flex items-center justify-center gap-3 px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl sm:rounded-b-xl">
             <button
               onClick={() => onSelect(selected, 'included')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium touch-manipulation active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40 hover:bg-green-200 dark:hover:bg-green-800/60"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium touch-manipulation active:scale-95 transition duration-150 disabled:opacity-40 disabled:cursor-not-allowed text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40 hover:bg-green-200 dark:hover:bg-green-800/60"
             >
               <CheckCircle size={16} />
               {t('articles.includeTitle')}
             </button>
             <button
               onClick={() => onSelect(selected, 'excluded')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium touch-manipulation active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-800/60"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium touch-manipulation active:scale-95 transition duration-150 disabled:opacity-40 disabled:cursor-not-allowed text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-800/60"
             >
               <XCircle size={16} />
               {t('articles.excludeTitle')}
@@ -603,11 +616,12 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
       >
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white mt-2 sm:mt-0">
+          <h2 id="multiselect-criteria-title" className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white mt-2 sm:mt-0">
             {t('multiSelect.selectCriteria')}
           </h2>
           <button
             onClick={onClose}
+            aria-label={t('modals.close')}
             className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
           >
             <XCircle size={22} />
@@ -621,7 +635,7 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
           <div
             className={`border-2 rounded-lg p-3 cursor-text transition mb-4 ${isOpenDrop
               ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-900'
-              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
+              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 dark:focus-within:ring-blue-900'
               } bg-white dark:bg-gray-700`}
             onClick={() => { setIsOpenDrop(true); inputRef.current?.focus(); }}
           >
@@ -636,7 +650,7 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
                       }`}
                   >
                     {item.id} - {item.label}
-                    <button
+                    <button aria-label={t('multiSelect.removeSelected', { label: item.label })}
                       onClick={(e) => { e.stopPropagation(); removeOption(item.id); }}
                       className="hover:bg-black hover:bg-opacity-10 rounded-full p-0.5 transition-colors touch-manipulation"
                     >
@@ -745,6 +759,8 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
   // ── Extração ─────────────────────────────────────────────────────────────
   return (
     <Overlay
+      onClose={onClose}
+      labelledBy="multiselect-extraction-title"
       footer={
         <div className="flex-shrink-0 flex items-center justify-end gap-3 px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
           <button
@@ -765,11 +781,12 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
       {/* Header */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <div className="absolute left-1/2 -translate-x-1/2 top-2 w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full sm:hidden" />
-        <h3 className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white mt-2 sm:mt-0">
+        <h3 id="multiselect-extraction-title" className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white mt-2 sm:mt-0">
           {t('protocol.extractionCriteria')}
         </h3>
         <button
           onClick={onClose}
+          aria-label={t('modals.close')}
           className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
         >
           <XCircle size={22} />
@@ -785,25 +802,30 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
                 key={index}
                 className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
               >
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                <label
+                  id={`extraction-label-${index}`}
+                  htmlFor={criterion.type === 'text' ? `extraction-input-${index}` : undefined}
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3"
+                >
                   {criterion.id} - {criterion.value}
                 </label>
 
                 {criterion.type === 'text' && (
                   <textarea
+                    id={`extraction-input-${index}`}
                     rows={3}
                     onChange={(e) => handleCriteriaChange(index, e.target.value)}
                     value={resultsExtraction[index]?.response || ''}
                     placeholder={t('multiSelect.answerPlaceholder')}
                     className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg
-                               focus:ring-2 focus:ring-orange-500 focus:border-transparent
+                               focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:border-transparent
                                bg-white dark:bg-gray-700 text-gray-900 dark:text-white
                                transition-colors duration-200 resize-none"
                   />
                 )}
 
                 {criterion.type === 'Pick on List' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  <div role="radiogroup" aria-labelledby={`extraction-label-${index}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     {criterion.items?.map((item, itemIndex) => (
                       <label
                         key={itemIndex}
@@ -824,7 +846,7 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
                 )}
 
                 {criterion.type === 'Pick on Many' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  <div role="group" aria-labelledby={`extraction-label-${index}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     {criterion.items?.map((item, itemIndex) => {
                       const isChecked = Array.isArray(resultsExtraction[index]?.response)
                         && resultsExtraction[index].response.includes(item);
@@ -1006,12 +1028,12 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
           <div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm sm:text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="protocol-title" className="block text-sm sm:text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('protocol.title')}
                 </label>
-                <input
+                <input id="protocol-title"
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm "
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm "
                   value={protocol.title}
                   onChange={(e) => handleProtocolChange('title', e.target.value)}
                   placeholder={t('protocol.titlePlaceholder')}
@@ -1019,11 +1041,11 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="protocol-question" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('protocol.researchQuestion')}
                 </label>
-                <textarea
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"
+                <textarea id="protocol-question"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"
                   rows={3}
                   value={protocol.researchQuestion}
                   onChange={(e) => handleProtocolChange('researchQuestion', e.target.value)}
@@ -1032,15 +1054,16 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <span id="protocol-period-label" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('protocol.publicationPeriod')}
-                </label>
-                <div className="grid grid-cols-2 gap-3">
+                </span>
+                <div role="group" aria-labelledby="protocol-period-label" className="grid grid-cols-2 gap-3">
                   <input
                     type="number"
                     min="1900"
                     max={new Date().getFullYear()}
                     className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"
+                    aria-label={t('protocol.yearStart')}
                     value={protocol.yearRange.start}
                     onChange={(e) => handleProtocolChange('yearRange', {
                       ...protocol.yearRange,
@@ -1052,6 +1075,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                     min="1900"
                     max={new Date().getFullYear()}
                     className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"
+                    aria-label={t('protocol.yearEnd')}
                     value={protocol.yearRange.end}
                     onChange={(e) => handleProtocolChange('yearRange', {
                       ...protocol.yearRange,
@@ -1081,7 +1105,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                           }}
                           className="peer sr-only"
                         />
-                        <div className="relative w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-all duration-200">
+                        <div className="relative w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition duration-200">
                         </div>
                         <Check className="absolute inset-0 m-auto w-3 h-3 text-white hidden peer-checked:block" />
                       </div>
@@ -1111,7 +1135,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                           }}
                           className="peer sr-only"
                         />
-                        <div className="relative w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-all duration-200">
+                        <div className="relative w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition duration-200">
                         </div>
                         <Check className="absolute inset-0 m-auto w-3 h-3 text-white hidden peer-checked:block" />
                       </div>
@@ -1141,14 +1165,14 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                         </td>
                         <td className="p-0 h-px w-full max-w-0">
                           <textarea
-                            className="w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 resize-none text-sm break-all"
+                            className="w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-green-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 resize-none text-sm break-all"
                             value={criteria.value}
                             onChange={(e) => handleCriteriaChange('inclusionCriteria', index, e.target.value, 'value')}
                             placeholder={t('protocol.inclusionPlaceholder')}
                           />
                         </td>
                         <td className="px-4 py-2 text-right whitespace-nowrap">
-                          <button
+                          <button aria-label={t('protocol.removeCriterion')}
                             disabled={protocol.inclusionCriteria.length === 1}
                             onClick={() => removeCriteria({ type: 'inclusionCriteria', index: index })}
                             className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors duration-200 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent disabled:hover:text-gray-500"
@@ -1187,14 +1211,14 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                         </td>
                         <td className="p-0 h-px w-full max-w-0">
                           <textarea
-                            className="w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 resize-none text-sm break-all"
+                            className="w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 resize-none text-sm break-all"
                             value={criteria.value}
                             onChange={(e) => handleCriteriaChange('exclusionCriteria', index, e.target.value, 'value')}
                             placeholder={t('protocol.exclusionPlaceholder')}
                           />
                         </td>
                         <td className="px-4 py-2 text-right whitespace-nowrap">
-                          <button
+                          <button aria-label={t('protocol.removeCriterion')}
                             disabled={protocol.exclusionCriteria.length === 1}
                             onClick={() => removeCriteria({ type: 'exclusionCriteria', index: index })}
                             className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors duration-200 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent disabled:hover:text-gray-500"
@@ -1233,14 +1257,14 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                         </td>
                         <td className="p-0 h-px w-full max-w-0">
                           <textarea
-                            className="w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 resize-none text-sm break-all"
+                            className="w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 resize-none text-sm break-all"
                             value={criteria.value}
                             onChange={(e) => handleCriteriaChange('qualityCriteria', index, e.target.value, 'value')}
                             placeholder={t('protocol.qualityPlaceholder')}
                           />
                         </td>
                         <td className="px-4 py-2 text-right whitespace-nowrap">
-                          <button
+                          <button aria-label={t('protocol.removeCriterion')}
                             disabled={protocol.qualityCriteria.length === 1}
                             onClick={() => removeCriteria({ type: 'qualityCriteria', index: index })}
                             className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors duration-200 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent disabled:hover:text-gray-500"
@@ -1282,7 +1306,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                         {`EX${index + 1}`}
                       </span>
                       <div className="flex items-center gap-1">
-                        <button
+                        <button aria-label={t('protocol.editOptions')}
                           disabled={
                             (criteria.type !== 'Pick on List' && criteria.type !== 'Pick on Many') ||
                             criteria.value === ''
@@ -1292,7 +1316,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                         >
                           <List size={15} />
                         </button>
-                        <button
+                        <button aria-label={t('protocol.removeCriterion')}
                           disabled={protocol.extractionCriteria.length === 1}
                           onClick={() => removeCriteria({ type: 'extractionCriteria', index })}
                           className="p-1.5 rounded-full text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-transparent transition-colors"
@@ -1308,7 +1332,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                       onChange={(e) =>
                         handleCriteriaChange('extractionCriteria', index, e.target.value, 'type')
                       }
-                      className="w-full text-sm px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 transition-colors"
+                      className="w-full text-sm px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus-visible:ring-2 focus-visible:ring-orange-500 transition-colors"
                     >
                       <option value="Text">{t('protocol.textType')}</option>
                       <option value="Pick on List">{t('protocol.singleChoice')}</option>
@@ -1323,7 +1347,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                         handleCriteriaChange('extractionCriteria', index, e.target.value, 'value')
                       }
                       placeholder={t('protocol.extractionPlaceholder')}
-                      className="w-full text-sm px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 transition-colors"
+                      className="w-full text-sm px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus-visible:ring-2 focus-visible:ring-orange-500 transition-colors"
                     />
                   </div>
                 ))}
@@ -1346,7 +1370,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                             onChange={(e) =>
                               handleCriteriaChange('extractionCriteria', index, e.target.value, 'type')
                             }
-                            className="h-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"
+                            className="h-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"
                           >
                             <option value="Text">{t('protocol.textType')}</option>
                             <option value="Pick on List">{t('protocol.singleChoice')}</option>
@@ -1355,7 +1379,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                         </td>
                         <td className="p-0 h-px w-full max-w-0">
                           <textarea
-                            className="w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 resize-none text-sm break-all"
+                            className="w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 resize-none text-sm break-all"
                             value={criteria.value}
                             onChange={(e) =>
                               handleCriteriaChange('extractionCriteria', index, e.target.value, 'value')
@@ -1368,7 +1392,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                           <td className="px-4 py-2 text-right whitespace-nowrap">
 
 
-                            <button
+                            <button aria-label={t('protocol.editOptions')}
                               disabled={
                                 (criteria.type !== 'Pick on List' && criteria.type !== 'Pick on Many') ||
                                 criteria.value === ''
@@ -1384,7 +1408,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                           </td>
                         )}
                         <td className="px-4 py-2 text-right">
-                          <button
+                          <button aria-label={t('protocol.removeCriterion')}
                             disabled={protocol.extractionCriteria.length === 1}
                             onClick={() => removeCriteria({ type: 'extractionCriteria', index })}
                             className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors duration-200 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent disabled:hover:text-gray-500"
@@ -1417,12 +1441,13 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
       {selectedExCriteria && (
         // document.body.overflowX = ''
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto transition-colors duration-200">
+          <DialogPanel onClose={() => handleSeExCriteria(null, null)} labelledBy="criteria-details-title" className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto transition-colors duration-200">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-start">
-                <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white">{selectedExCriteria.value}</h3>
+                <h3 id="criteria-details-title" className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white">{selectedExCriteria.value}</h3>
                 <button
                   onClick={() => handleSeExCriteria(null, null)}
+                  aria-label={t('modals.close')}
                   className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
                 >
                   <XCircle size={24} />
@@ -1441,14 +1466,14 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                           <td className="w-full p-0 h-px">
                             <input
                               type="text"
-                              className={index === 0 ? "w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-tl-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm" : "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"}
+                              className={index === 0 ? "w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-tl-lg focus-visible:ring-2 focus-visible:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm" : "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"}
                               value={criteria}
                               onChange={(e) => handleCriteriaChange('extractionCriteria', selectedInExCriteria, e.target.value, 'items', index)}
                               placeholder={t('protocol.qualityPlaceholder')}
                             />
                           </td>
                           <td className="px-4 py-2 text-right">
-                            <button
+                            <button aria-label={t('protocol.removeOption')}
                               // (type, index, typeEx, subIndex)
                               disabled={selectedExCriteria.items.length === 1}
                               onClick={() => removeCriteria({ type: 'extractionCriteria', index: selectedInExCriteria, atr: 'items', subIndex: index })}
@@ -1473,7 +1498,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                 </div>
               </div>
             </div>
-          </div>
+          </DialogPanel>
         </div>
       )}
 
@@ -1512,19 +1537,19 @@ const SearchStringModal = ({ isOpen, onClose, onConfirm, database }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full transition-colors duration-200">
+      <DialogPanel onClose={onClose} labelledBy="search-string-title" className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full transition-colors duration-200">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 id="search-string-title" className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white">
             {t('searchString.title', { database })}
           </h3>
         </div>
         <div className="p-6">
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="search-string-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               {t('searchString.input')}
             </label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200"
+            <textarea id="search-string-input"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200"
               rows={4}
               value={searchString}
               onChange={(e) => setSearchString(e.target.value)}
@@ -1550,7 +1575,7 @@ const SearchStringModal = ({ isOpen, onClose, onConfirm, database }) => {
             </button>
           </div>
         </div>
-      </div>
+      </DialogPanel>
     </div>
   );
 };
@@ -1636,15 +1661,15 @@ const ScoringSystemConfig = ({ scoringSystem, onUpdate, protocol, addCriteria, r
                           <td className="w-full p-0 h-px">
                             <input
                               type="text"
-                              // flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-20
-                              className={index === 0 ? "w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-tl-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm" : "w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"}
+                              // flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-20
+                              className={index === 0 ? "w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-tl-lg focus-visible:ring-2 focus-visible:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm" : "w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"}
                               value={criteria}
                               onChange={(e) => handleCriteriaChange('keywords', index, e.target.value)}
                               placeholder={t('scoring.keywordPlaceholder')}
                             />
                           </td>
                           <td className="px-4 py-2 text-right">
-                            <button
+                            <button aria-label={t('scoring.removeKeyword')}
                               disabled={protocol.keywords.length === 1}
                               onClick={() => removeCriteria({ type: 'keywords', index: index })}
                               className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors duration-200 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent disabled:hover:text-gray-500"
@@ -1680,14 +1705,14 @@ const ScoringSystemConfig = ({ scoringSystem, onUpdate, protocol, addCriteria, r
                 ].map(field => (
                   <div key={field.key} className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
-                      <label className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                      <label htmlFor={`weight-${field.key}`} className="text-sm font-medium text-blue-600 dark:text-blue-400">
                         {field.label}
                       </label>
                       <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
                         {scoringSystem.weights[field.key]} pts
                       </span>
                     </div>
-                    <input
+                    <input id={`weight-${field.key}`}
                       type="range"
                       min="0"
                       max="10"
@@ -1764,6 +1789,119 @@ const ScoringSystemConfig = ({ scoringSystem, onUpdate, protocol, addCriteria, r
         </div>
       </div>
 
+    </div>
+  );
+};
+
+// Bases aceitas na importação; as classes ficam literais para o Tailwind encontrá-las
+const IMPORT_SOURCES = [
+  {
+    database: 'Scopus', id: 'scopus', accept: '.csv,.ris,.bib,.txt', upload: 'import.uploadScopus', format: 'import.formatBibtex', numberByDataId: true,
+    badge: 'bg-orange-100 dark:bg-orange-900/30', iconColor: 'text-orange-600 dark:text-orange-400', panel: 'bg-orange-50 dark:bg-orange-900/30', strong: 'text-orange-800 dark:text-orange-300', soft: 'text-orange-700 dark:text-orange-400'
+  },
+  {
+    database: 'Web of Science', id: 'wos', accept: '.csv,.ris,.bib,.txt', upload: 'import.uploadWoS', format: 'import.formatBibtex',
+    badge: 'bg-violet-100 dark:bg-violet-900/30', iconColor: 'text-violet-600 dark:text-violet-400', panel: 'bg-violet-50 dark:bg-violet-900/30', strong: 'text-violet-800 dark:text-violet-300', soft: 'text-violet-700 dark:text-violet-400'
+  },
+  {
+    database: 'PubMed', id: 'pubmed', accept: '.csv,.ris,.bib,.txt', upload: 'import.uploadPubmed', format: 'import.formatPubmed',
+    badge: 'bg-sky-100 dark:bg-sky-900/30', iconColor: 'text-sky-600 dark:text-sky-400', panel: 'bg-sky-50 dark:bg-sky-900/30', strong: 'text-sky-800 dark:text-sky-300', soft: 'text-sky-700 dark:text-sky-400'
+  },
+  {
+    database: 'ScienceDirect', id: 'sciencedirect', accept: '.bib,.bibtex,.txt', upload: 'import.uploadScienceDirect', format: 'import.formatBibtex',
+    badge: 'bg-orange-100 dark:bg-orange-900/30', iconColor: 'text-orange-600 dark:text-orange-400', panel: 'bg-orange-50 dark:bg-orange-900/30', strong: 'text-orange-800 dark:text-orange-300', soft: 'text-orange-700 dark:text-orange-400'
+  },
+];
+
+// Cartão de uma base: área de soltar arquivo (o input fica escondido) e resumo das strings importadas
+const DatabaseImportCard = ({ source, imports, duplicatesById, isLoading, onFile }) => {
+  const { t, i18n } = useTranslation();
+  const [isDragOver, setIsDragOver] = useState(false);
+  const inputId = `file-upload-${source.id}`;
+  const formatCount = (n) => n.toLocaleString(i18n.language);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (isLoading || !e.dataTransfer.files.length) return;
+    // Mesmo formato do input: handleImportRequest lê files[0] e depois zera value
+    onFile({ files: e.dataTransfer.files, value: '' });
+  };
+
+  return (
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800 transition-colors duration-200">
+      <div className="flex items-center mb-4">
+        <div className={`w-12 h-12 rounded-lg flex items-center justify-center mr-4 ${source.badge}`}>
+          <Database className={`h-6 w-6 ${source.iconColor}`} aria-hidden="true" />
+        </div>
+        <div>
+          <h3 className="text-sm sm:text-lg font-semibold text-gray-800 dark:text-white">{source.database}</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{t(source.format)}</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <label
+          htmlFor={inputId}
+          onDragOver={(e) => { e.preventDefault(); if (!isLoading) setIsDragOver(true); }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={handleDrop}
+          className={`grid justify-items-center gap-2 p-4 rounded-lg border-2 border-dashed text-center transition-colors duration-200 focus-within:ring-2 focus-within:ring-indigo-500 ${isLoading
+            ? 'cursor-not-allowed opacity-60 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40'
+            : isDragOver
+              ? 'cursor-copy border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
+              : 'cursor-pointer border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40 hover:border-indigo-400 dark:hover:border-indigo-500'
+            }`}
+        >
+          <Upload className={`h-6 w-6 ${source.iconColor}`} aria-hidden="true" />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('import.dropHere', { database: source.database })}</span>
+          <span className="inline-flex items-center px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200">
+            {t('import.chooseFile')}
+          </span>
+          <input
+            type="file"
+            id={inputId}
+            accept={source.accept}
+            onChange={(e) => onFile(e.target)}
+            disabled={isLoading}
+            aria-label={t(source.upload)}
+            className="sr-only"
+          />
+        </label>
+
+        {imports.length > 0 && (
+          <div className={`p-4 rounded-lg transition-colors duration-200 ${source.panel}`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`font-medium ${source.strong}`}>{t('import.status')}</span>
+              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" aria-hidden="true" />
+            </div>
+            {imports.map((data, index) => (
+              <div key={index} className="space-y-1 text-sm mb-3 last:mb-0">
+                <div className="flex justify-between gap-3">
+                  <span className={source.soft}>{t('import.string', { index: source.numberByDataId ? data.id : index + 1 })}</span>
+                  <span className={`font-medium tabular-nums ${source.strong}`}>{t('import.articles', { count: data.articles.length })}</span>
+                </div>
+                <p className={`text-xs break-words line-clamp-2 ${source.soft}`} title={data.searchString}>
+                  {data.searchString}
+                </p>
+                <div className="flex justify-between text-xs">
+                  <span className={source.soft}>{t('import.duplicates')}</span>
+                  <span className="font-medium tabular-nums text-red-600 dark:text-red-400">
+                    {formatCount(duplicatesById['duplicate' + data.id] ?? 0)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isLoading && (
+          <div role="status" className="flex items-center justify-center py-4">
+            <RefreshCw className="h-5 w-5 animate-spin text-gray-500 dark:text-gray-400 mr-2" aria-hidden="true" />
+            <span className="text-sm text-gray-600 dark:text-gray-400">{t('import.processing')}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -1876,7 +2014,7 @@ const ImportSection = ({ articles, setArticles, onImport, isLoading, importedDat
       // Remove os artigos do import deletado e reseta isDuplicate de todos
       const remainingArticles = prevArticles
         .filter(article => article.idData !== data.id)
-        .map(article => ({ ...article, isDuplicate: false, dataProcessingStatus: article.dataProcessingStatus === 'duplicate' ? 'pending' : article.dataProcessingStatus, duplicateOf: null }));
+        .map(article => ({ ...article, dataProcessingRevision: nextProcessingRevision(article), isDuplicate: false, dataProcessingStatus: article.dataProcessingStatus === 'duplicate' ? 'pending' : article.dataProcessingStatus, duplicateOf: null }));
 
       // Reavalia duplicatas do zero
       const duplicatesByDOI = new Map();
@@ -1886,14 +2024,15 @@ const ImportSection = ({ articles, setArticles, onImport, isLoading, importedDat
         let isDuplicate = false;
         let duplicateOf = null;
 
-        if (article.doi && duplicatesByDOI.has(article.doi)) {
+        const doiKey = duplicateDoiKey(article);
+        if (doiKey && duplicatesByDOI.has(doiKey)) {
           isDuplicate = true;
-          duplicateOf = duplicatesByDOI.get(article.doi);
-        } else if (article.doi) {
-          duplicatesByDOI.set(article.doi, article.id);
+          duplicateOf = duplicatesByDOI.get(doiKey);
+        } else if (doiKey) {
+          duplicatesByDOI.set(doiKey, article.id);
         }
 
-        const normalizedTitle = article.title.toLowerCase().trim();
+        const normalizedTitle = duplicateTitleKey(article);
         if (duplicatesByTitle.has(normalizedTitle)) {
           isDuplicate = true;
           duplicateOf = duplicatesByTitle.get(normalizedTitle);
@@ -1902,7 +2041,7 @@ const ImportSection = ({ articles, setArticles, onImport, isLoading, importedDat
         }
 
         return isDuplicate
-          ? { ...article, isDuplicate: true, dataProcessingStatus: 'duplicate', duplicateOf }
+          ? { ...article, dataProcessingRevision: nextProcessingRevision(article), isDuplicate: true, dataProcessingStatus: 'duplicate', duplicateOf }
           : article;
       });
     });
@@ -1927,271 +2066,16 @@ const ImportSection = ({ articles, setArticles, onImport, isLoading, importedDat
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" data-tour="import-sources">
-        {/* Scopus */}
-        {protocol.databases.includes('Scopus') && (
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800 transition-colors duration-200">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center mr-4">
-                <Database className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div>
-                <h3 className="text-sm sm:text-lg font-semibold text-gray-800 dark:text-white">Scopus</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('import.importBibtex')}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('import.uploadScopus')}
-                </label>
-                <input
-                  type="file"
-                  id="file-upload-scopus"
-                  accept=".csv,.ris,.bib,.txt"
-                  onChange={(e) => handleImportRequest(e.target, 'Scopus')}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 dark:hover:text-white dark:hover:bg-indigo-500 hover:text-black hover:bg-gray-200 file:hidden"
-                  disabled={isLoadingState}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {t('import.formatBibtex')}
-                </p>
-              </div>
-
-              {importedData.filter(data => data.database === 'Scopus').length > 0 && (
-                <div className="bg-orange-50 dark:bg-orange-900/30 p-4 rounded-lg transition-colors duration-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-orange-800 dark:text-orange-300">{t('import.status')}</span>
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  </div>
-                  {importedData.filter(data => data.database === 'Scopus').map((data, index) => (
-                    <div key={index} className="space-y-1 text-sm mb-3 last:mb-0">
-                      <div className="flex justify-between">
-                        <span className="text-orange-700 dark:text-orange-400">{t('import.string', { index: data.id })}</span>
-                        <span className="font-medium text-orange-800 dark:text-orange-300">{t('import.articles', { count: data.articles.length })}</span>
-                      </div>
-                      <div className="text-xs text-orange-600 dark:text-orange-500 break-all">
-                        {data.searchString.length > 80 ? data.searchString.substring(0, 80) + '...' : data.searchString}
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-orange-600 dark:text-orange-400">{t('import.duplicates')}</span>
-                        <span className="font-medium text-red-600 dark:text-red-400">
-                          {statistics.importSection['duplicate' + data.id]}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {isLoadingState && (
-                <div className="flex items-center justify-center py-4">
-                  <RefreshCw className="h-5 w-5 animate-spin text-orange-600 dark:text-orange-400 mr-2" />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">{t('import.processing')}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Web of Science */}
-        {protocol.databases.includes('Web of Science') && (
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800 transition-colors duration-200">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center mr-4">
-                <Database className="h-6 w-6 text-violet-600 dark:text-violet-400" />
-              </div>
-              <div>
-                <h3 className="text-sm sm:text-lg font-semibold text-gray-800 dark:text-white">Web of Science</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('import.importBibtex')}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('import.uploadWoS')}
-                </label>
-                <input
-                  type="file"
-                  accept=".csv,.ris,.bib,.txt"
-                  onChange={(e) => handleImportRequest(e.target, 'Web of Science')}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 dark:hover:text-white dark:hover:bg-indigo-500 hover:text-black hover:bg-gray-200 file:hidden"
-                  disabled={isLoadingState}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {t('import.formatBibtex')}
-                </p>
-              </div>
-
-              {importedData.filter(data => data.database === 'Web of Science').length > 0 && (
-                <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg transition-colors duration-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-blue-800 dark:text-blue-300">{t('import.status')}</span>
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  </div>
-                  {importedData.filter(data => data.database === 'Web of Science').map((data, index) => (
-                    <div key={index} className="space-y-1 text-sm mb-3 last:mb-0">
-                      <div className="flex justify-between">
-                        <span className="text-blue-700 dark:text-blue-400">{t('import.string', { index: index + 1 })}</span>
-                        <span className="font-medium text-blue-800 dark:text-blue-300">{t('import.articles', { count: data.articles.length })}</span>
-                      </div>
-                      <div className="text-xs text-blue-600 dark:text-blue-500 break-all">
-                        {data.searchString.length > 80 ? data.searchString.substring(0, 80) + '...' : data.searchString}
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-blue-600 dark:text-blue-400">{t('import.duplicates')}</span>
-                        <span className="font-medium text-red-600 dark:text-red-400">
-                          {statistics.importSection['duplicate' + data.id]}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {isLoadingState && (
-                <div className="flex items-center justify-center py-4">
-                  <RefreshCw className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400 mr-2" />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">{t('import.processing')}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* PubMed */}
-        {protocol.databases.includes('PubMed') && (
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800 transition-colors duration-200">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12  bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center mr-4">
-                <Database className="h-6 w-6 text-sky-700  dark:text-sky-600" />
-              </div>
-              <div>
-                <h3 className="text-sm sm:text-lg font-semibold text-gray-800 dark:text-white">PubMed</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('import.importPubmed')}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('import.uploadPubmed')}
-                </label>
-                <input
-                  type="file"
-                  accept=".csv,.ris,.bib,.txt"
-                  onChange={(e) => handleImportRequest(e.target, 'PubMed')}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 dark:hover:text-white dark:hover:bg-indigo-500 hover:text-black hover:bg-gray-200 file:hidden"
-                  disabled={isLoadingState}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {t('import.formatPubmed')}
-                </p>
-              </div>
-
-              {importedData.filter(data => data.database === 'PubMed').length > 0 && (
-                <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg transition-colors duration-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-blue-800 dark:text-blue-300">{t('import.status')}</span>
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  </div>
-                  {importedData.filter(data => data.database === 'PubMed').map((data, index) => (
-                    <div key={index} className="space-y-1 text-sm mb-3 last:mb-0">
-                      <div className="flex justify-between">
-                        <span className="text-blue-700 dark:text-blue-400">{t('import.string', { index: index + 1 })}</span>
-                        <span className="font-medium text-blue-800 dark:text-blue-300">{t('import.articles', { count: data.articles.length })}</span>
-                      </div>
-                      <div className="text-xs text-blue-600 dark:text-blue-500 break-all">
-                        {data.searchString.length > 80 ? data.searchString.substring(0, 80) + '...' : data.searchString}
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-blue-600 dark:text-blue-400">{t('import.duplicates')}</span>
-                        <span className="font-medium text-red-600 dark:text-red-400">
-                          {statistics.importSection['duplicate' + data.id]}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {isLoadingState && (
-                <div className="flex items-center justify-center py-4">
-                  <RefreshCw className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400 mr-2" />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">{t('import.processing')}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ScienceDirect */}
-        {protocol.databases.includes('ScienceDirect') && (
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800 transition-colors duration-200">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center mr-4">
-                <Database className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div>
-                <h3 className="text-sm sm:text-lg font-semibold text-gray-800 dark:text-white">ScienceDirect</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{t('import.importBibtex')}</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t('import.uploadScienceDirect')}
-                </label>
-                <input
-                  type="file"
-                  accept=".bib,.bibtex,.txt"
-                  onChange={(e) => handleImportRequest(e.target, 'ScienceDirect')}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 dark:hover:text-white dark:hover:bg-indigo-500 hover:text-black hover:bg-gray-200 file:hidden"
-                  disabled={isLoadingState}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {t('import.formatBibtex')}
-                </p>
-              </div>
-
-              {importedData.filter(data => data.database === 'ScienceDirect').length > 0 && (
-                <div className="bg-orange-50 dark:bg-orange-900/30 p-4 rounded-lg transition-colors duration-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-orange-800 dark:text-orange-300">{t('import.status')}</span>
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  </div>
-                  {importedData.filter(data => data.database === 'ScienceDirect').map((data, index) => (
-                    <div key={index} className="space-y-1 text-sm mb-3 last:mb-0">
-                      <div className="flex justify-between">
-                        <span className="text-orange-700 dark:text-orange-400">{t('import.string', { index: index + 1 })}</span>
-                        <span className="font-medium text-orange-800 dark:text-orange-300">{t('import.articles', { count: data.articles.length })}</span>
-                      </div>
-                      <div className="text-xs text-orange-600 dark:text-orange-500 break-all">
-                        {data.searchString.length > 80 ? data.searchString.substring(0, 80) + '...' : data.searchString}
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-orange-600 dark:text-orange-400">{t('import.duplicates')}</span>
-                        <span className="font-medium text-red-600 dark:text-red-400">
-                          {statistics.importSection['duplicate' + data.id]}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {isLoadingState && (
-                <div className="flex items-center justify-center py-4">
-                  <RefreshCw className="h-5 w-5 animate-spin text-orange-600 dark:text-orange-400 mr-2" />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">{t('import.processing')}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
+        {IMPORT_SOURCES.filter(source => protocol.databases.includes(source.database)).map(source => (
+          <DatabaseImportCard
+            key={source.database}
+            source={source}
+            imports={importedData.filter(data => data.database === source.database)}
+            duplicatesById={statistics.importSection}
+            isLoading={isLoadingState}
+            onFile={(target) => handleImportRequest(target, source.database)}
+          />
+        ))}
       </div>
 
       {/* Tabela de dados importados */}
@@ -2268,7 +2152,7 @@ const ImportSection = ({ articles, setArticles, onImport, isLoading, importedDat
                       {new Date(data.importDate).toLocaleDateString(i18n.language === 'pt' ? 'pt-BR' : 'en-US')}
                     </td>
                     <td className="px-1 py-4 text-sm font-medium text-gray-500 dark:text-gray-400">
-                      <button
+                      <button aria-label={t('import.delete')}
                         onClick={() => {
                           handleExcludeData(data)
                         }}
@@ -2353,8 +2237,12 @@ const ImportSection = ({ articles, setArticles, onImport, isLoading, importedDat
 };
 
 // Componente para Tratamento de Dados
-const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateStatus, detectDuplicates, statistics }) => {
+const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateStatus, detectDuplicates, statistics, scoreZeroHistory, scoreZeroResult, onExcludeScoreZero, onUndoScoreZero }) => {
   const { t } = useTranslation();
+  const restoreCount = useMemo(() => {
+    const byId = new Map(articles.map(a => [a.id, a]));
+    return (scoreZeroHistory.operation?.entries || []).filter(e => canRestoreScoreZero(byId.get(e.id), e)).length;
+  }, [articles, scoreZeroHistory]);
 
   const [duplicateDetection, setDuplicateDetection] = useState({
     byTitle: true,
@@ -2364,6 +2252,10 @@ const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateS
   });
   const [duplicates, setDuplicates] = useState(0)
   const [removeIncludes, setRemoveIncludes] = useState(false)
+  // 'scoreZero' | 'acceptAll' | null: qual cartão mostra a confirmação
+  const [pendingConfirm, setPendingConfirm] = useState(null)
+  // Mesma seleção de handleIncludePendents, para a mensagem bater com o que será aceito
+  const pendingCount = articles.filter((article) => article.dataProcessingStatus == "pending").length
   const [alertMessage, setAlertMessage] = useState(null)
   const handleClassifyDuplicates = () => {
     const statusField = 'dataProcessingStatus';
@@ -2383,29 +2275,16 @@ const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateS
     }, 100);
   };
 
-  const handleExcludeScore = (removeIncludes) => {
-    const statusField = 'dataProcessingStatus';
-
-    // Marcar todas as duplicatas como excluídas
-    const allowedStatuses = removeIncludes
-      ? ["pending", "included"]
-      : ["pending"];
-
-    const pendingArticles = articles.filter(article =>
-      allowedStatuses.includes(article.dataProcessingStatus)
-    );
-
-    pendingArticles.forEach(article => {
-      if (article.score === 0) {
-        onUpdateStatus(article.id, statusField, 'excluded', null);
-      }
-    });
-
-    const zeroScore = pendingArticles.filter(a => a.score === 0);
-
-    setTimeout(() => {
-      setAlertMessage({ type: 'info', title: t('modals.alert.infoTitle'), message: t('dataprocessing.alertScore', { count: zeroScore.length }) });
-    }, 100);
+  const handleExcludeScore = (includeApproved) => {
+    if (!articles.some(a => eligibleForScoreZero(a, includeApproved))) {
+      setAlertMessage({ type: 'info', title: t('modals.alert.infoTitle'), message: t('dataprocessing.noEligible') });
+      return;
+    }
+    if (restoreCount) {
+      setPendingConfirm('scoreZero');
+      return;
+    }
+    onExcludeScoreZero(includeApproved);
   };
 
   const handleIncludePendents = () => {
@@ -2414,6 +2293,7 @@ const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateS
     // Marcar todas as duplicatas como excluídas
 
     const pendingArticles = articles.filter((article) => article.dataProcessingStatus == "pending")
+    setPendingConfirm(null);
 
     pendingArticles.forEach(article => {
       onUpdateStatus(article.id, statusField, 'included', null);
@@ -2467,36 +2347,88 @@ const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateS
             <h4 className="font-semibold text-gray-800 dark:text-gray-300 mb-1">{t('dataprocessing.scoreTitle')}</h4>
             <p className="text-sm text-gray-700 dark:text-gray-400 mb-3">{t('dataprocessing.scoreDesc')}</p>
 
-            <div className="grid grid-cols-[2fr_1fr] gap-2">
+            <label className="flex items-start gap-3 mb-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-pointer">
+              <div className="relative flex-shrink-0 mt-0.5">
+                <input
+                  type="checkbox"
+                  checked={removeIncludes}
+                  onChange={(e) => setRemoveIncludes(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="w-9 h-5 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-indigo-600 dark:peer-checked:bg-indigo-500 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 transition-colors duration-200" />
+                <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform duration-200 peer-checked:translate-x-4" />
+              </div>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-gray-800 dark:text-gray-200">{t('dataprocessing.removeIncludes')}</span>
+                <span className="block text-xs text-gray-500 dark:text-gray-400">{t('dataprocessing.removeIncludesHint')}</span>
+              </span>
+            </label>
+
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={() => handleExcludeScore(removeIncludes)}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium touch-manipulation active:scale-95 transition-all duration-150 text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-800/60"
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium touch-manipulation active:scale-95 transition duration-150 text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-800/60"
               >
                 <CopyX className="h-4 w-4" />
                 {t('dataprocessing.scoreButton')}
               </button>
               <button
-                key="removeIncludes"
-                onClick={() => setRemoveIncludes(!removeIncludes)}
-                className={`text-sm px-3 py-2 rounded-xl flex items-center justify-center gap-2 border-none cursor-pointer touch-manipulation active:scale-95 transition-all duration-150
-                  ${removeIncludes
-                    ? 'bg-indigo-600 text-white dark:bg-indigo-500'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+                type="button"
+                onClick={onUndoScoreZero}
+                disabled={!restoreCount}
+                title={t('dataprocessing.undoScoreZero', { count: restoreCount })}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium touch-manipulation active:scale-95 transition duration-150 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 disabled:hover:bg-white dark:disabled:hover:bg-gray-800 whitespace-nowrap"
               >
-                {t('dataprocessing.removeIncludes')}
+                <Undo2 className="h-4 w-4" />
+                {t('dataprocessing.undoShort')}
+                {restoreCount > 0 && (
+                  <span className="ml-0.5 px-1.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">{restoreCount}</span>
+                )}
               </button>
             </div>
+
+            {pendingConfirm === 'scoreZero' && (
+              <InlineConfirm
+                message={t('dataprocessing.replaceUndo')}
+                confirmLabel={t('dataprocessing.scoreConfirmOk')}
+                onConfirm={() => { setPendingConfirm(null); onExcludeScoreZero(removeIncludes); }}
+                onCancel={() => setPendingConfirm(null)}
+              />
+            )}
+
+            {(scoreZeroResult || !restoreCount) && (
+              <p className="mt-3 flex items-start gap-1.5 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
+                <Info className="h-3.5 w-3.5 mt-px flex-shrink-0" />
+                <span>
+                  {scoreZeroResult?.type === 'restored'
+                    ? t('dataprocessing.undoResult', scoreZeroResult)
+                    : scoreZeroResult?.type === 'excluded'
+                      ? t('dataprocessing.alertScore', { count: scoreZeroResult.count })
+                      : t('dataprocessing.noUndo')}
+                </span>
+              </p>
+            )}
           </div>
 
           <div className="p-4 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 rounded-lg transition-colors duration-200">
             <h4 className="font-semibold text-gray-800 dark:text-gray-300 mb-3">{t('dataprocessing.autoAcceptTitle')}</h4>
             <button
-              onClick={handleIncludePendents}
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium touch-manipulation active:scale-95 transition-all duration-150 text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40 hover:bg-green-200 dark:hover:bg-green-800/60"
+              onClick={() => pendingCount > 0 ? setPendingConfirm('acceptAll') : handleIncludePendents()}
+              aria-expanded={pendingConfirm === 'acceptAll'}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium touch-manipulation active:scale-95 transition duration-150 text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40 hover:bg-green-200 dark:hover:bg-green-800/60"
             >
               <CopyCheck className="h-4 w-4" />
               {t('dataprocessing.autoAcceptButton')}
             </button>
+            {pendingConfirm === 'acceptAll' && (
+              <InlineConfirm
+                tone="success"
+                message={t('dataprocessing.autoAcceptConfirm', { count: pendingCount })}
+                confirmLabel={t('dataprocessing.autoAcceptOk')}
+                onConfirm={handleIncludePendents}
+                onCancel={() => setPendingConfirm(null)}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -2693,19 +2625,18 @@ const Filter3Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
 
 // Componente melhorado para lista de artigos
 // Texto completo dos artigos (Filtros 2 e 3) — ainda não disponível
-const getArticleFullText = async () => null;
 
-const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assistSettings = null, onSetSuggestions, onAddUsage, onDetailsOpenChange }) => {
+const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assistSettings = null, onStartEvaluation, onApplyAi, onDetailsOpenChange, onOpenRules }) => {
   const { t } = useTranslation();
   // Triagem assistida: só nos filtros 1-3 e com chave configurada
   const assistStage = STAGES.includes(currentFilter) ? currentFilter : null;
   const assistEnabled = !!assistSettings && !!assistStage;
-  const [batchSnapshot, setBatchSnapshot] = useState(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [evaluatingId, setEvaluatingId] = useState(null);
   const [evaluationError, setEvaluationError] = useState(null);
   const [pagination, setPagination] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchField, setSearchField] = useState('all'); // all | title | titleAuthor | author
   // Filtrar artigos baseado no status (pendente, incluído, excluído)
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -2787,35 +2718,38 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
   }, [articles, currentFilter]);
 
   // Filtrar artigos baseado na seção atual
+  const aiReviewById = useMemo(() => assistStage
+    ? new Map(sectionArticles.map(article => [article.id, aiReviewState(article, protocol, assistStage)]))
+    : new Map(), [sectionArticles, protocol, assistStage]);
+  const selectedStatusFilter = !assistStage && statusFilter.startsWith('suggest-') ? 'all' : statusFilter;
+
   const filteredArticles = useMemo(() => {
     let filtered = [...sectionArticles];
 
     // Aplicar busca
-    if (searchTerm) {
-      filtered = filtered.filter(article =>
-        article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        article.abstract.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        article.keywords.some(k => k.toLowerCase().includes(searchTerm.toLowerCase()))
-        // article.journal.toLowerCase().includes(searchTerm.toLowerCase())
-        // article.authors.toLowerCase().includes(searchTerm.toLowerCase()) 
-      );
+    if (searchTerm.trim()) {
+      // Sem diferenciar maiúsculas nem acentos; cada palavra precisa aparecer em algum dos campos
+      const norm = (v) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const words = norm(searchTerm).split(/\s+/).filter(Boolean);
+      const fieldsOf = (article) => {
+        if (searchField === 'title') return [article.title];
+        if (searchField === 'author') return [article.authors];
+        if (searchField === 'titleAuthor') return [article.title, article.authors];
+        return [article.title, article.authors, article.abstract, ...(article.keywords || [])];
+      };
+      filtered = filtered.filter(article => {
+        const text = norm(fieldsOf(article).join(' \n '));
+        return words.every(w => text.includes(w));
+      });
     }
 
     // Aplicar filtro de status
-    if (statusFilter.startsWith('suggest-')) {
-      const wanted = statusFilter.slice('suggest-'.length);
-      filtered = filtered.filter(article => {
-        const suggestion = withCurrentRules(article.aiSuggestions?.[currentFilter], protocol, currentFilter);
-        if (wanted === 'none') return !suggestion;
-        if (wanted === 'uncertain') return suggestion?.decision === 'uncertain' || suggestion?.decision === 'needs-text';
-        return suggestion?.decision === wanted;
-      });
-    } else if (statusFilter !== 'all') {
+    if (selectedStatusFilter.startsWith('suggest-')) {
+      const wanted = selectedStatusFilter.slice('suggest-'.length);
+      filtered = filtered.filter(article => aiReviewById.get(article.id)?.group === wanted);
+    } else if (selectedStatusFilter !== 'all') {
       const statusField = getStatusField(currentFilter);
-      filtered = filtered.filter(article => {
-        const status = article[statusField];
-        return status === statusFilter;
-      });
+      filtered = filtered.filter(article => article[statusField] === selectedStatusFilter);
     }
 
     // Ordenação pela relevância da sugestão (título como desempate)
@@ -2855,7 +2789,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
     }
 
     return filtered;
-  }, [sectionArticles, currentFilter, searchTerm, statusFilter, sortConfig, protocol]);
+  }, [sectionArticles, currentFilter, searchTerm, searchField, selectedStatusFilter, sortConfig, protocol, aiReviewById]);
 
 
   const paginatedArticles = useMemo(() => {
@@ -2868,7 +2802,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
   // Resetar paginação quando os filtros mudarem
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, searchField, statusFilter]);
 
   const handleSort = (key) => {
     if (sortConfig.key !== key) {
@@ -2945,44 +2879,30 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
   // ── Triagem assistida ──────────────────────────────────────────────────────
   // Sugestão do filtro atual, com a decisão recalculada pelas regras vigentes
   const currentSuggestion = (article) =>
-    withCurrentRules(article?.aiSuggestions?.[assistStage] ?? null, protocol, assistStage);
+    aiReviewById.get(article?.id)?.suggestion ?? withCurrentRules(article?.aiSuggestions?.[assistStage] ?? null, protocol, assistStage);
 
   const suggestionIsStale = (article) =>
-    isSuggestionStale(currentSuggestion(article), protocol, assistStage, null);
+    isSuggestionStale(currentSuggestion(article), protocol, assistStage, articleText(article), article);
 
   const canAcceptSuggestion = (article) => {
     const suggestion = currentSuggestion(article);
-    return assistEnabled && !!suggestion && !suggestionIsStale(article) &&
-      (suggestion.decision === 'included' || suggestion.decision === 'excluded');
+    return !!assistStage && hasActionableDecision(suggestion) && stageIsPending(article, assistStage) && !requiresReevaluation(suggestion) && !suggestionIsStale(article);
   };
 
-  const acceptSuggestion = (article, source = 'jev-accepted') => {
-    const suggestion = currentSuggestion(article);
-    if (!suggestion) return;
-    if (suggestion.decision === 'included') handleInclude(article, suggestion.criteria, source);
-    else if (suggestion.decision === 'excluded') handleExclude(article, suggestion.criteria, source);
+  const acceptSuggestion = (article, source = null) => {
+    if (!canAcceptSuggestion(article)) return;
+    onApplyAi(assistStage, [article], source?.endsWith('-auto') ? 'auto' : 'accepted');
   };
 
-  const evaluateOne = async (article) => {
+  const evaluateOne = async article => {
     if (!assistEnabled || !article) return;
     setEvaluatingId(article.id);
     setEvaluationError(null);
     try {
-      const fullText = assistStage === 'filter1' ? null : await getArticleFullText(article);
-      const { suggestion, usage } = await evaluateArticle({
-        article,
-        protocol,
-        stage: assistStage,
-        settings: assistSettings,
-        fullText,
-      });
-      onSetSuggestions(assistStage, [{ id: article.id, suggestion }]);
-      if (usage) onAddUsage({ inputTokens: usage.input_tokens ?? 0, requests: 1 });
-    } catch (error) {
-      setEvaluationError(jevErrorMessage(t, error));
-    } finally {
-      setEvaluatingId(null);
-    }
+      await onStartEvaluation({ articles: [article], protocol, stage: assistStage, settings: assistSettings,
+        sectionTitle: getSectionTitle(), reevaluate: true, autoStart: true });
+    } catch (error) { setEvaluationError(jevErrorMessage(t, error)); }
+    finally { setEvaluatingId(null); }
   };
 
   const pendingInSection = useMemo(() => {
@@ -2994,11 +2914,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
   const applyPreview = useMemo(() => {
     if (!assistEnabled) return null;
     const suggestionOf = (a) => withCurrentRules(a.aiSuggestions?.[assistStage] ?? null, protocol, assistStage);
-    const applicable = pendingInSection.filter(a => {
-      const suggestion = suggestionOf(a);
-      return !isSuggestionStale(suggestion, protocol, assistStage, null) &&
-        isAutoApplicable(suggestion, protocol, assistStage);
-    });
+    const applicable = pendingInSection.filter(a => applicableSuggestion(a, protocol, assistStage));
     const include = applicable.filter(a => suggestionOf(a).decision === 'included').length;
     return {
       applicable,
@@ -3009,7 +2925,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
   }, [assistEnabled, pendingInSection, protocol, assistStage]);
 
   const applySuggestions = () => {
-    applyPreview?.applicable.forEach(article => acceptSuggestion(article, 'jev-auto'));
+    onApplyAi(assistStage, applyPreview?.applicable || [], 'auto');
     setShowApplyModal(false);
   };
 
@@ -3122,44 +3038,49 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
         {/* Barra de busca e filtros */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <input
-                type="text"
-                placeholder={t('articles.searchPlaceholder')}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className="flex flex-wrap items-center gap-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus-within:ring-2 focus-within:ring-indigo-500 transition-colors duration-200">
+              <div className="relative flex-1 min-w-[12rem]">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  placeholder={t(searchField === 'all' ? 'articles.searchPlaceholder' : `articles.searchPlaceholder_${searchField}`)}
+                  className="w-full pl-10 pr-2 py-2 border-0 rounded-lg bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-white"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div
+                role="radiogroup"
+                aria-label={t('articles.searchFieldLabel')}
+                title={t('articles.searchFieldLabel')}
+                className="flex items-center gap-0.5 m-1 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800"
+              >
+                {['all', 'title', 'titleAuthor', 'author'].map(field => (
+                  <button
+                    key={field}
+                    type="button"
+                    role="radio"
+                    aria-checked={searchField === field}
+                    onClick={() => setSearchField(field)}
+                    className={`px-2.5 py-1 text-xs font-medium rounded whitespace-nowrap transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${searchField === field
+                      ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-300 shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                  >
+                    {t(`articles.searchField_${field}`)}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
           <div className="min-w-[180px]">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              <option value="all">{t('articles.allStatus')}</option>
-              <option value="pending">{t('articles.pending')}</option>
-              <option value="included">{t('articles.included')}</option>
-              <option value="excluded">{t('articles.excluded')}</option>
-              <option value="duplicate">{t('articles.duplicates')}</option>
-              {assistEnabled && (
-                <>
-                  <option value="suggest-included">{t('assist.filterSuggestInclude')}</option>
-                  <option value="suggest-excluded">{t('assist.filterSuggestExclude')}</option>
-                  <option value="suggest-uncertain">{t('assist.filterSuggestUncertain')}</option>
-                  <option value="suggest-none">{t('assist.filterNoSuggestion')}</option>
-                </>
-              )}
-            </select>
+            <ArticleStatusFilter value={selectedStatusFilter} onChange={e => setStatusFilter(e.target.value)} showAi={!!assistStage} />
           </div>
 
           {assistEnabled && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => setBatchSnapshot(pendingInSection)}
+                onClick={() => onStartEvaluation({ articles: pendingInSection, protocol, stage: assistStage, settings: assistSettings, sectionTitle: getSectionTitle() })}
                 className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 whitespace-nowrap"
                 title={t('assist.evaluatePendingTitle')}
               >
@@ -3176,6 +3097,10 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                 {t('assist.applySuggestions')}
                 {applyPreview?.applicable.length > 0 && ` (${applyPreview.applicable.length})`}
               </button>
+              {onOpenRules && <button type="button" onClick={onOpenRules}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-indigo-300 dark:border-indigo-600 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+                <Settings className="h-4 w-4" />{t('assist.editRules')}
+              </button>}
             </div>
           )}
         </div>
@@ -3339,10 +3264,11 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                       <SuggestionBadge suggestion={currentSuggestion(article)} stale={suggestionIsStale(article)} />
                     )}
                     </div>
+                    {assistStage && <AiReviewNotice state={aiReviewById.get(article.id)} />}
                   </td>
                   <td className="px-1 py-4 text-sm font-medium">
-                    <div className="flex gap-1 w-fit" data-tour={rowIndex === 0 ? 'article-actions' : undefined}>
-                      <button
+                    <div className="flex gap-1.5 w-fit" data-tour={rowIndex === 0 ? 'article-actions' : undefined}>
+                      <button aria-label={t('articles.includeTitle')}
                         onClick={() => {
                           if (currentFilter === 'dataprocessing') {
                             // incluir direto no filtro 1 sem abrir modal
@@ -3351,14 +3277,14 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                             setShowCriterionModal({ type: 'include', article });
                           }
                         }}
-                        className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 p-1 transition-colors duration-200"
+                        className="grid place-items-center w-[30px] h-[30px] p-0 rounded-md border-none transition-colors duration-200 bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/40 dark:text-green-300 dark:hover:bg-green-900/70"
                         data-tour={rowIndex === 0 ? 'action-include' : undefined}
                         title={t('articles.includeTitle')}
                       >
                         <CheckCircle size={16} />
                       </button>
 
-                      <button
+                      <button aria-label={t('articles.excludeTitle')}
                         onClick={() => {
                           if (currentFilter === 'dataprocessing') {
                             // incluir direto no filtro 1 sem abrir modal
@@ -3367,25 +3293,24 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                             setShowCriterionModal({ type: 'exclude', article });
                           }
                         }}
-                        className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 p-1 transition-colors duration-200"
+                        className="grid place-items-center w-[30px] h-[30px] p-0 rounded-md border-none transition-colors duration-200 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/70"
                         data-tour={rowIndex === 0 ? 'action-exclude' : undefined}
                         title={t('articles.excludeTitle')}
                       >
                         <XCircle size={16} />
                       </button>
-                      <button
+                      <button aria-label={t('articles.duplicateTitle')}
                         onClick={() => { handleDuplicate(article) }}
-                        className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 p-1 transition-colors duration-200"
-
+                        className="grid place-items-center w-[30px] h-[30px] p-0 rounded-md border-none transition-colors duration-200 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/40 dark:text-orange-300 dark:hover:bg-orange-900/70"
                         data-tour={rowIndex === 0 ? 'action-duplicate' : undefined}
                         title={t('articles.duplicateTitle')}
                       >
                         <BookCopy size={16} />
                       </button>
 
-                      <button
+                      <button aria-label={t('articles.viewDetails')}
                         onClick={() => getCurrentArticle(article)}
-                        className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 p-1 transition-colors duration-200"
+                        className="grid place-items-center w-[30px] h-[30px] p-0 rounded-md border-none transition-colors duration-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/70"
                         data-tour={rowIndex === 0 ? 'action-details' : undefined}
                         title={t('articles.viewDetails')}
                       >
@@ -3429,7 +3354,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                     }
                   }}
                   onBlur={applyPageInput}
-                  className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm text-center"
+                  className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm text-center"
                   title={t('articles.pageJump')}
                 />
                 <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -3497,29 +3422,16 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
           setShowCriterionModal={setShowCriterionModal}
           optionExtraction={optionExtraction}
           janelaRef={janelaRef}
-          assist={assistEnabled ? {
+          assist={assistStage ? {
             suggestion: currentSuggestion(selectedArticle),
+            reviewState: aiReviewById.get(selectedArticle.id),
             stale: suggestionIsStale(selectedArticle),
             criteria: criterias,
             evaluating: evaluatingId === selectedArticle.id,
-            error: evaluationError,
-            onEvaluate: () => evaluateOne(selectedArticle),
-            onAccept: () => acceptSuggestion(selectedArticle),
+            error: selectedArticle.aiEvaluationAttempts?.[assistStage]?.status === 'error' ? jevErrorMessage(t, selectedArticle.aiEvaluationAttempts[assistStage]) : evaluationError,
+            onEvaluate: assistEnabled ? () => evaluateOne(selectedArticle) : null,
+            onAccept: canAcceptSuggestion(selectedArticle) ? () => acceptSuggestion(selectedArticle) : null,
           } : null}
-        />
-      )}
-
-      {batchSnapshot && (
-        <JevBatchModal
-          stage={assistStage}
-          sectionTitle={getSectionTitle()}
-          articles={batchSnapshot}
-          protocol={protocol}
-          settings={assistSettings}
-          getFullText={getArticleFullText}
-          onResults={onSetSuggestions}
-          onUsage={onAddUsage}
-          onClose={() => setBatchSnapshot(null)}
         />
       )}
 
@@ -3528,6 +3440,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
           sectionTitle={getSectionTitle()}
           rule={autoRuleSummary(protocol, assistStage)}
           preview={applyPreview}
+          onEditRules={onOpenRules ? () => { setShowApplyModal(false); onOpenRules(); } : undefined}
           onConfirm={applySuggestions}
           onClose={() => setShowApplyModal(false)}
         />
@@ -3568,7 +3481,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
 
             {/* Submenu de critérios de inclusão */}
             <div
-              className={`absolute bottom-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg py-2 min-w-[200px] max-w-[250px] max-h-[300px] overflow-y-auto opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 ${contextMenu.x > window.innerWidth - 350 ? 'right-full mr-1 ml-0' : 'left-full'
+              className={`absolute bottom-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg py-2 min-w-[200px] max-w-[250px] max-h-[300px] overflow-y-auto opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-[opacity,visibility] duration-200 z-50 ${contextMenu.x > window.innerWidth - 350 ? 'right-full mr-1 ml-0' : 'left-full'
                 }`}
             >
               <div className="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-600 mb-1 sticky top-0 bg-white dark:bg-gray-800">
@@ -3582,7 +3495,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                   title={criterion.value}
                 >
                   <span className="block truncate">
-                    {criterion.value.length > 35 ? criterion.value.substring(0, 35) + '...' : criterion.value}
+                    {criterion.value.length > 35 ? criterion.value.substring(0, 35) + '…' : criterion.value}
                   </span>
                 </button>
               ))}
@@ -3604,7 +3517,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
 
             {/* Submenu de critérios de exclusão */}
             <div
-              className={`absolute bottom-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg py-2 min-w-[200px] max-w-[250px] max-h-[300px] overflow-y-auto opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 ${contextMenu.x > window.innerWidth - 350 ? 'right-full mr-1 ml-0' : 'left-full'
+              className={`absolute bottom-0 ml-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg py-2 min-w-[200px] max-w-[250px] max-h-[300px] overflow-y-auto opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-[opacity,visibility] duration-200 z-50 ${contextMenu.x > window.innerWidth - 350 ? 'right-full mr-1 ml-0' : 'left-full'
                 }`}
             >
               <div className="px-3 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-600 mb-1 sticky top-0 bg-white dark:bg-gray-800">
@@ -3618,7 +3531,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                   title={criterion.value}
                 >
                   <span className="block truncate">
-                    {criterion.value.length > 35 ? criterion.value.substring(0, 35) + '...' : criterion.value}
+                    {criterion.value.length > 35 ? criterion.value.substring(0, 35) + '…' : criterion.value}
                   </span>
                 </button>
               ))}
@@ -3640,8 +3553,11 @@ const STATUS_FIELD_STAGE = {
 
 // Componente principal
 const SystematicReviewTool = () => {
-  const { t } = useTranslation();
-  const [articles, setArticles] = useState([]);
+  const { t, i18n } = useTranslation();
+  const [{ articles, scoreZeroHistory, result: scoreZeroResult }, dispatchArticles] = useReducer(articleReducer, undefined, initialArticleState);
+  const setArticles = useCallback(update => dispatchArticles({ type: 'update', update }), []);
+  const onExcludeScoreZero = includeApproved => dispatchArticles({ type: 'exclude-zero', includeApproved, id: crypto.randomUUID(), at: new Date().toISOString() });
+  const onUndoScoreZero = () => dispatchArticles({ type: 'undo-zero', at: new Date().toISOString() });
   const [numStringSc, setNumStringSc] = useState(0);
   const [loading, setLoading] = useState(false);
   const [currentSection, setCurrentSection] = useState('protocol');
@@ -3673,6 +3589,23 @@ const SystematicReviewTool = () => {
       multipleOccurrences: true // contar múltiplas ocorrências da mesma keyword
     }
   });
+
+  const evaluationCallbacksRef = useRef({});
+  const [evaluationController] = useState(() => createEvaluationController({
+    onResults: (...args) => evaluationCallbacksRef.current.results?.(...args),
+    onUsage: (...args) => evaluationCallbacksRef.current.usage?.(...args),
+  }));
+  const evaluationJob = useSyncExternalStore(evaluationController.subscribe, evaluationController.getSnapshot, evaluationController.getSnapshot);
+  const evaluationActive = !!evaluationJob && ['preparing', 'ready', 'running'].includes(evaluationJob.phase);
+  const onStartEvaluation = useCallback(async args => {
+    const id = await evaluationController.prepare(args);
+    if (args.autoStart && id) { evaluationController.minimize(); await evaluationController.start(); }
+  }, [evaluationController]);
+  useEffect(() => {
+    const changed = e => evaluationController.connectionChanged(e.detail.provider, e.detail.connectionId);
+    window.addEventListener('sysreview-ai-connection', changed);
+    return () => { window.removeEventListener('sysreview-ai-connection', changed); evaluationController.stop(); };
+  }, [evaluationController]);
 
   // Estado de salvamento
   const [autoSaveInterval, setAutoSaveInterval] = useState(null);
@@ -3707,32 +3640,78 @@ const SystematicReviewTool = () => {
   const SUPPORT_REQUEST_INTERVAL_MS = 60 * 60 * 1000; // 1h
 
   const [alertMessage, setAlertMessage] = useState(null);
+  // Confirmação no lugar de window.confirm: askConfirm devolve uma Promise<boolean>
+  const [confirmRequest, setConfirmRequest] = useState(null);
+  const askConfirm = useCallback((request) => new Promise(resolve => setConfirmRequest({ ...request, resolve })), []);
+  // No celular a lista de etapas rola na horizontal: mantém a etapa ativa visível
+  const stepsListRef = useRef(null);
+  useEffect(() => {
+    const list = stepsListRef.current;
+    const active = list?.querySelector('[aria-current="page"]');
+    if (!list || !active) return;
+    const { left, right } = active.getBoundingClientRect();
+    const box = list.getBoundingClientRect();
+    if (left < box.left || right > box.right) {
+      list.scrollTo({ left: list.scrollLeft + left - box.left - 8, behavior: 'smooth' });
+    }
+  }, [currentSection]);
+  const closeConfirm = (confirmed) => {
+    confirmRequest?.resolve(confirmed);
+    setConfirmRequest(null);
+  };
 
   // Triagem assistida (Jev): configurações locais da máquina
   const [jevSettings, setJevSettings] = useState(loadJevSettings);
   const [showJevSettings, setShowJevSettings] = useState(false);
+  const [rulesOnlySettings, setRulesOnlySettings] = useState(false);
+  const returnToEvaluationRef = useRef(null);
+  const openAiRules = () => {
+    const job = evaluationController.getSnapshot();
+    returnToEvaluationRef.current = job && !job.minimized ? job.id : null;
+    evaluationController.minimize();
+    setRulesOnlySettings(true);
+    setShowJevSettings(true);
+  };
+  const closeAiSettings = () => {
+    setShowJevSettings(false);
+    if (returnToEvaluationRef.current && returnToEvaluationRef.current === evaluationController.getSnapshot()?.id) evaluationController.expand();
+    returnToEvaluationRef.current = null;
+  };
 
+  const restoreState = useCallback((data) => {
+    evaluationController.resetProject();
+    setShowJevSettings(false);
+    returnToEvaluationRef.current = null;
+    fileOpenedAtRef.current = Date.now();
+    isRestoringRef.current = true;
+    setProtocol(data.protocol || {});
+    dispatchArticles({ type: 'restore', articles: data.articles || [], history: data.scoreZeroHistory });
+    setCurrentSection(data.currentSection || 'protocol');
+    setImportedData(data.importedData || []);
+    setLastSaved(data.metadata?.savedAt ? new Date(data.metadata.savedAt) : null);
+    setHasUnsavedChanges(false)
+  }, [evaluationController]);
+  const backupRestoredRef = useRef(false);
+  const backupStateRef = useRef(null);
+  useEffect(() => { backupStateRef.current = { protocol, articles, scoreZeroHistory, currentSection, importedData, statistics: {} }; }, [protocol, articles, scoreZeroHistory, currentSection, importedData]);
   // Auto-save setup
   useEffect(() => {
-    const getState = () => ({
-      protocol,
-      articles,
-      currentSection,
-      importedData
-    });
+    const getState = () => backupStateRef.current;
 
     const interval = setupAutoSave(getState, 5);
     setAutoSaveInterval(interval);
 
     const autoSaveResult = loadAutoSave();
-    if (autoSaveResult.success && autoSaveResult.data.articles?.length > 0) {
-      const shouldRestore = window.confirm(
-        t('messages.restoreBackup', { date: new Date(autoSaveResult.data.metadata?.autoSavedAt || Date.now()).toLocaleString() })
-      );
-
-      if (shouldRestore) {
-        restoreState(autoSaveResult.data);
-      }
+    if (!backupRestoredRef.current && autoSaveResult.success && autoSaveResult.data.articles?.length > 0) {
+      backupRestoredRef.current = true;
+      askConfirm({
+        title: t('messages.restoreTitle'),
+        message: t('messages.restoreBackup', { date: new Date(autoSaveResult.data.metadata?.autoSavedAt || Date.now()).toLocaleString(i18n.language) }),
+        confirmLabel: t('messages.restoreOk'),
+        cancelLabel: t('messages.restoreCancel'),
+      }).then(shouldRestore => {
+        if (shouldRestore) restoreState(autoSaveResult.data);
+      });
     }
 
     return () => {
@@ -3740,7 +3719,7 @@ const SystematicReviewTool = () => {
         clearInterval(interval);
       }
     };
-  }, []);
+  }, [restoreState, t, askConfirm, i18n.language]);
 
   // O reload recomeça do zero: limpa qualquer handle/preferência de auto-save persistidos
   useEffect(() => {
@@ -3780,7 +3759,7 @@ const SystematicReviewTool = () => {
   // Warning antes de fechar
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      if (hasUnsavedChanges) {
+      if (hasUnsavedChanges || evaluationActive) {
         e.preventDefault();
         e.returnValue = '';
       }
@@ -3788,7 +3767,7 @@ const SystematicReviewTool = () => {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges]);
+  }, [hasUnsavedChanges, evaluationActive]);
 
   const statistics = useMemo(() => {
 
@@ -3893,7 +3872,7 @@ const SystematicReviewTool = () => {
         isRestoringRef.current = false;
         return;
       }
-      const state = { protocol, articles, statistics, currentSection, importedData, warnAfterMin };
+      const state = { protocol, articles, scoreZeroHistory, statistics, currentSection, importedData, warnAfterMin };
       const result = await autoSaveToFile(state, autoSaveHandleRef.current);
       if (result.success) {
         setLastSaved(new Date());
@@ -3909,7 +3888,7 @@ const SystematicReviewTool = () => {
     }, 4000);
 
     return () => clearTimeout(timeout);
-  }, [autoSaveEnabled, hasUnsavedChanges, articles, protocol, currentSection, importedData, statistics, warnAfterMin]);
+  }, [autoSaveEnabled, hasUnsavedChanges, articles, scoreZeroHistory, protocol, currentSection, importedData, statistics, warnAfterMin]);
 
   // Flush do auto-save ao ocultar/sair da página
   useEffect(() => {
@@ -3917,7 +3896,7 @@ const SystematicReviewTool = () => {
 
     const flush = () => {
       if (!autoSaveHandleRef.current) return;
-      const state = { protocol, articles, statistics, currentSection, importedData, warnAfterMin };
+      const state = { protocol, articles, scoreZeroHistory, statistics, currentSection, importedData, warnAfterMin };
       autoSaveToFile(state, autoSaveHandleRef.current);
     };
     const onVisibility = () => {
@@ -3929,7 +3908,7 @@ const SystematicReviewTool = () => {
       window.removeEventListener('pagehide', flush);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [autoSaveEnabled, articles, protocol, currentSection, importedData, statistics, warnAfterMin]);
+  }, [autoSaveEnabled, articles, scoreZeroHistory, protocol, currentSection, importedData, statistics, warnAfterMin]);
 
   // Fechar menu ao clicar fora
   useEffect(() => {
@@ -4006,7 +3985,7 @@ const SystematicReviewTool = () => {
   // Função para remover duplicatas permanentemente
   const removeDuplicateArticles = useCallback((duplicateIds) => {
     setArticles(prev => prev.filter(article => !duplicateIds.includes(article.id)));
-  }, []);
+  }, [setArticles]);
 
   // Disponibilizar função globalmente
   useEffect(() => {
@@ -4028,7 +4007,7 @@ const SystematicReviewTool = () => {
       ...article,
       score: calculateArticleScore(article, validKeywords, protocol.scoringSystem)
     })));
-  }, [protocol.keywords, protocol.scoringSystem, calculateArticleScore]);
+  }, [protocol.keywords, protocol.scoringSystem, calculateArticleScore, setArticles]);
 
   // useEffect para recálculo automático de pontuações
   useEffect(() => {
@@ -4082,7 +4061,7 @@ const SystematicReviewTool = () => {
   };
 
   const handleSaveProject = async () => {
-    const state = { protocol, articles, statistics, currentSection, importedData, warnAfterMin };
+    const state = { protocol, articles, scoreZeroHistory, statistics, currentSection, importedData, warnAfterMin };
     const handle = autoSaveHandleRef.current;
 
     // Se já existe um handle (arquivo conhecido), grava direto sem abrir o picker
@@ -4095,18 +4074,15 @@ const SystematicReviewTool = () => {
 
   // Salvar como: sempre abre o seletor para escolher um novo nome/arquivo
   const handleSaveAs = async () => {
-    const state = { protocol, articles, statistics, currentSection, importedData, warnAfterMin };
+    const state = { protocol, articles, scoreZeroHistory, statistics, currentSection, importedData, warnAfterMin };
     const result = await saveProjectToFile(state);
     handleSaveResult(result);
   };
 
-  const handleOpenProjectFile = useCallback((file, fileHandle = null) => {
+  const handleOpenProjectFile = useCallback(async (file, fileHandle = null) => {
     if (!file) return;
 
-    if (hasUnsavedChanges) {
-      const shouldProceed = window.confirm(t('messages.unsavedChanges'));
-      if (!shouldProceed) return;
-    }
+    if ((hasUnsavedChanges || evaluationActive) && !(await askConfirm({ title: t('messages.unsavedTitle'), message: t('messages.unsavedChanges'), confirmLabel: t('messages.unsavedOk'), tone: 'danger' }))) return;
 
     loadProjectFromFile(file)
       .then(result => {
@@ -4131,7 +4107,7 @@ const SystematicReviewTool = () => {
       .catch(error => {
         setAlertMessage({ type: 'error', title: t('modals.alert.errorTitle'), message: t('messages.projectLoadError', { error: error.error }) });
       });
-  }, [hasUnsavedChanges, t]);
+  }, [hasUnsavedChanges, evaluationActive, t, restoreState, askConfirm]);
 
   const handleLoadProject = (event) => {
     const file = event.target.files[0];
@@ -4184,11 +4160,13 @@ const SystematicReviewTool = () => {
     }
   }, [enableAutoSave, disableAutoSave]);
 
-  const handleNewProject = () => {
-    if (hasUnsavedChanges && !window.confirm(t('messages.unsavedChanges'))) {
+  const handleNewProject = async () => {
+    setShowFileMenu(false);
+    if ((hasUnsavedChanges || evaluationActive) && !(await askConfirm({ title: t('messages.unsavedTitle'), message: t('messages.unsavedChanges'), confirmLabel: t('messages.unsavedOk'), tone: 'danger' }))) {
       return;
     }
 
+    evaluationController.resetProject();
     isRestoringRef.current = true;
     setProtocol({
       title: '',
@@ -4213,7 +4191,7 @@ const SystematicReviewTool = () => {
         multipleOccurrences: true // contar múltiplas ocorrências da mesma keyword
       }
     });
-    setArticles([]);
+    dispatchArticles({ type: 'restore', articles: [] });
     setCurrentSection('protocol');
     setImportedData([]);
     setHasUnsavedChanges(false);
@@ -4351,7 +4329,13 @@ const SystematicReviewTool = () => {
           acc[`suggestionProbabilityF${i + 1}`] = probability === null ? "" : Math.round(probability * 1000) / 1000;
           const relevance = relevanceOf(suggestion);
           acc[`relevanceF${i + 1}`] = relevance === null ? "" : Math.round(relevance * 1000) / 1000;
-          acc[`decisionSourceF${i + 1}`] = source === 'jev-auto' ? "Suggestion (batch)" : source === 'jev-accepted' ? "Suggestion (accepted)" : source === 'user' ? "Manual" : "";
+          acc[`suggestionProviderF${i + 1}`] = suggestion?.provider || (suggestion ? 'jev' : '');
+          acc[`suggestionModelF${i + 1}`] = suggestion?.model || '';
+          acc[`suggestionEffortF${i + 1}`] = suggestion?.requestedEffort || '';
+          acc[`suggestionEffectiveEffortF${i + 1}`] = suggestion?.effectiveEffort || '';
+          acc[`suggestionUnassessedF${i + 1}`] = (suggestion?.unassessed || []).map(c => c.id).join('; ');
+          acc[`evaluationErrorF${i + 1}`] = article.aiEvaluationAttempts?.[stage]?.code || '';
+          acc[`decisionSourceF${i + 1}`] = source?.endsWith('-auto') ? "Suggestion (batch)" : source?.endsWith('-accepted') ? "Suggestion (accepted)" : source === 'user' ? "Manual" : "";
           return acc;
         }, {});
 
@@ -4406,12 +4390,13 @@ const SystematicReviewTool = () => {
       exclusionCriterion: "Exclusion Criteria",
       qualityCriteria: "Quality Criteria",
     };
-    const usesAssist = articles.some(a => a.aiSuggestions && Object.keys(a.aiSuggestions).length > 0);
+    const usesAssist = articles.some(a => Object.keys(a.aiSuggestions || {}).length > 0 || Object.keys(a.aiEvaluationAttempts || {}).length > 0);
     const headerAssist = usesAssist ? STAGES.reduce((acc, stage, i) => {
       acc[`suggestionF${i + 1}`] = `Suggestion Filter ${i + 1}`;
       acc[`suggestionProbabilityF${i + 1}`] = `Suggestion Probability Filter ${i + 1}`;
       acc[`relevanceF${i + 1}`] = `Relevance Filter ${i + 1}`;
       acc[`decisionSourceF${i + 1}`] = `Decision Source Filter ${i + 1}`;
+      for (const [key, label] of Object.entries({ suggestionProvider: 'AI Provider', suggestionModel: 'AI Model', suggestionEffort: 'Requested Effort', suggestionEffectiveEffort: 'Effective Effort', suggestionUnassessed: 'Unassessed Criteria', evaluationError: 'Evaluation Error' })) acc[`${key}F${i + 1}`] = `${label} Filter ${i + 1}`;
       return acc;
     }, {}) : {};
     const headerArticlesFinal = {
@@ -4503,16 +4488,7 @@ const SystematicReviewTool = () => {
     URL.revokeObjectURL(url);
   }
 
-  const restoreState = (data) => {
-    fileOpenedAtRef.current = Date.now();
-    isRestoringRef.current = true;
-    setProtocol(data.protocol || {});
-    setArticles(data.articles || []);
-    setCurrentSection(data.currentSection || 'protocol');
-    setImportedData(data.importedData || []);
-    setLastSaved(data.metadata?.savedAt ? new Date(data.metadata.savedAt) : null);
-    setHasUnsavedChanges(false)
-  };
+
 
   // Estatísticas calculadas
   // Substituir o cálculo das estatísticas (linha ~1147)
@@ -4531,14 +4507,15 @@ const SystematicReviewTool = () => {
         let isDuplicate = false;
         let duplicateOf = article.duplicateOf;
 
-        if (article.doi && duplicatesByDOI.has(article.doi)) {
+        const doiKey = duplicateDoiKey(article);
+        if (doiKey && duplicatesByDOI.has(doiKey)) {
           isDuplicate = true;
-          duplicateOf = duplicatesByDOI.get(article.doi);
-        } else if (article.doi) {
-          duplicatesByDOI.set(article.doi, article.id);
+          duplicateOf = duplicatesByDOI.get(doiKey);
+        } else if (doiKey) {
+          duplicatesByDOI.set(doiKey, article.id);
         }
 
-        const normalizedTitle = article.title.toLowerCase().trim();
+        const normalizedTitle = duplicateTitleKey(article);
         if (duplicatesByTitle.has(normalizedTitle)) {
           isDuplicate = true;
           duplicateOf = duplicatesByTitle.get(normalizedTitle);
@@ -4547,23 +4524,26 @@ const SystematicReviewTool = () => {
         }
 
         return isDuplicate
-          ? { ...article, isDuplicate: true, dataProcessingStatus: 'duplicate', duplicateOf }
+          ? { ...article, dataProcessingRevision: nextProcessingRevision(article), isDuplicate: true, dataProcessingStatus: 'duplicate', duplicateOf }
           : article;
       });
     });
     setLoading(false);
-  }, []);
+  }, [setArticles]);
 
   const handleUpdateStatus = useCallback((id, statusType, status, criterion = null, source = 'user') => {
+    const at = new Date().toISOString();
     setArticles(prev => prev.map(article => {
       if (article.id !== id) return article;
 
       let base = status !== 'extracted'
-        ? { ...article, [statusType]: status, lastModified: new Date() } :
-        { ...article, lastModified: new Date() };
+        ? { ...article, [statusType]: status, lastModified: at } :
+        { ...article, lastModified: at };
+      if (statusType === 'dataProcessingStatus') base.dataProcessingRevision = nextProcessingRevision(article);
 
       // Origem da decisão por filtro (manual, sugestão aceita ou aplicada em lote)
       const stage = STATUS_FIELD_STAGE[statusType];
+      if (stage) base.aiDecisionRevisions = { ...article.aiDecisionRevisions, [stage]: (article.aiDecisionRevisions?.[stage] || 0) + 1 };
       if (stage && status !== 'extracted') {
         const { [stage]: _previous, ...otherSources } = article.decisionSource ?? {};
         base = {
@@ -4603,21 +4583,24 @@ const SystematicReviewTool = () => {
         qualityCriteria: newQualityCriteria,
       };
     }));
-  }, []);
+  }, [setArticles]);
 
   // Salva as sugestões geradas para um filtro: entries = [{ id, suggestion }]
-  const handleSetSuggestions = useCallback((stage, entries) => {
-    if (!entries.length) return;
-    const byId = new Map(entries.map(e => [e.id, e.suggestion]));
-    setArticles(prev => prev.map(article => byId.has(article.id)
-      ? { ...article, aiSuggestions: { ...(article.aiSuggestions ?? {}), [stage]: byId.get(article.id) } }
-      : article
-    ));
-  }, []);
+  const handleSetSuggestions = useCallback((stage, entries, session) => {
+    if (!entries.length || session !== evaluationController.session) return;
+    setArticles(prev => session === evaluationController.session ? mergeEvaluationEntries(prev, stage, entries) : prev);
+  }, [setArticles, evaluationController]);
+
+  const onApplyAi = useCallback((stage, candidates, mode) => {
+    const at = new Date().toISOString();
+    setArticles(prev => applyAiSuggestions(prev, protocol, stage, candidates, mode, at));
+  }, [setArticles, protocol]);
 
   // Acumula o consumo de tokens no protocolo do projeto
-  const handleAddUsage = useCallback(({ inputTokens = 0, requests = 0 }) => {
+  const handleAddUsage = useCallback(({ inputTokens = 0, outputTokens = 0, reasoningTokens = 0, requests = 0, provider = 'jev', model = '' }, session) => {
+    if (session !== evaluationController.session) return;
     setProtocol(prev => {
+      if (session !== evaluationController.session) return prev;
       const config = getAiConfig(prev);
       return {
         ...prev,
@@ -4626,11 +4609,31 @@ const SystematicReviewTool = () => {
           usage: {
             inputTokens: config.usage.inputTokens + inputTokens,
             requests: config.usage.requests + requests,
+            byModel: {
+              ...(config.usage.byModel || {}),
+              [`${provider}:${model}`]: {
+                inputTokens: (config.usage.byModel?.[`${provider}:${model}`]?.inputTokens || 0) + inputTokens,
+                outputTokens: (config.usage.byModel?.[`${provider}:${model}`]?.outputTokens || 0) + outputTokens,
+                reasoningTokens: (config.usage.byModel?.[`${provider}:${model}`]?.reasoningTokens || 0) + reasoningTokens,
+                requests: (config.usage.byModel?.[`${provider}:${model}`]?.requests || 0) + requests,
+              },
+            },
+            byProvider: {
+              ...(config.usage.byProvider || { jev: { inputTokens: config.usage.inputTokens, requests: config.usage.requests } }),
+              [provider]: {
+                inputTokens: (config.usage.byProvider?.[provider]?.inputTokens ?? (provider === 'jev' && !config.usage.byProvider ? config.usage.inputTokens : 0)) + inputTokens,
+                requests: (config.usage.byProvider?.[provider]?.requests ?? (provider === 'jev' && !config.usage.byProvider ? config.usage.requests : 0)) + requests,
+              },
+            },
           },
         },
       };
     });
-  }, []);
+  }, [evaluationController]);
+
+  useLayoutEffect(() => {
+    evaluationCallbacksRef.current = { results: handleSetSuggestions, usage: handleAddUsage };
+  }, [handleSetSuggestions, handleAddUsage]);
 
   // Função para detectar duplicatas por diferentes critérios
   const detectDuplicates = useCallback(() => {
@@ -4641,14 +4644,15 @@ const SystematicReviewTool = () => {
       let isDuplicate = false;
       let duplicateOf = article.duplicateOf;
 
-      if (article.doi && duplicatesByDOI.has(article.doi)) {
+      const doiKey = duplicateDoiKey(article);
+      if (doiKey && duplicatesByDOI.has(doiKey)) {
         isDuplicate = true;
-        duplicateOf = duplicatesByDOI.get(article.doi);
-      } else if (article.doi) {
-        duplicatesByDOI.set(article.doi, article.id);
+        duplicateOf = duplicatesByDOI.get(doiKey);
+      } else if (doiKey) {
+        duplicatesByDOI.set(doiKey, article.id);
       }
 
-      const normalizedTitle = article.title.toLowerCase().trim();
+      const normalizedTitle = duplicateTitleKey(article);
       if (duplicatesByTitle.has(normalizedTitle)) {
         isDuplicate = true;
         duplicateOf = duplicatesByTitle.get(normalizedTitle);
@@ -4656,19 +4660,19 @@ const SystematicReviewTool = () => {
         duplicatesByTitle.set(normalizedTitle, article.id);
       }
       if (isDuplicate) {
-        return { ...article, isDuplicate: true, dataProcessingStatus: 'duplicate', duplicateOf };
+        return { ...article, dataProcessingRevision: nextProcessingRevision(article), isDuplicate: true, dataProcessingStatus: 'duplicate', duplicateOf };
       } else {
-        return { ...article, isDuplicate: false, dataProcessingStatus: 'pending' };
+        return { ...article, dataProcessingRevision: nextProcessingRevision(article), isDuplicate: false, dataProcessingStatus: 'pending' };
       }
 
       return article;
     });
 
     setArticles(updatedArticles);
-  }, [articles]);
+  }, [articles, setArticles]);
 
   const ConfigureNotification = () => (
-    <button onClick={() => setShowReminderSettings(true)} data-tour="reminder"
+    <button aria-label={t('header.notification')} onClick={() => setShowReminderSettings(true)} data-tour="reminder"
       className="p-2 rounded-lg transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center"
       title={t('header.notification')}
     >
@@ -4677,7 +4681,7 @@ const SystematicReviewTool = () => {
   );
 
   const AssistSettings = () => (
-    <button onClick={() => setShowJevSettings(true)} data-tour="assist"
+    <button aria-label={t('assist.headerButton')} onClick={() => { setRulesOnlySettings(false); setShowJevSettings(true); }} data-tour="assist"
       className="p-2 rounded-lg transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center"
       title={t('assist.headerButton')}
     >
@@ -4688,7 +4692,7 @@ const SystematicReviewTool = () => {
   // Componente Support
   const Support = () => {
     return (
-      <button onClick={() => setShowSupport(true)} data-tour="support"
+      <button aria-label={t('header.support')} onClick={() => setShowSupport(true)} data-tour="support"
         className="p-2 rounded-lg transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center"
         title={t('header.support')}
       >
@@ -4698,7 +4702,7 @@ const SystematicReviewTool = () => {
   };
 
   const GuideButton = () => (
-    <button onClick={() => {
+    <button aria-label={t('header.guide')} onClick={() => {
       setShowChecklist(!showChecklist);
       setChecklistHidden(showChecklist);
     }}
@@ -4821,13 +4825,25 @@ const SystematicReviewTool = () => {
     { id: 'statistics', name: t('nav.statistics'), icon: ChartArea },
     { id: 'about', name: t('nav.about'), icon: Info }
   ];
-  const sectionGroups = [
-    [sections[0], sections[1]],  // Protocolo + Tratamento
-    [sections[2]],       // Importação (sozinho)
-    [sections[3], sections[4], sections[5]], // Filtro 1, 2, 3
-    [sections[6]],                    // Estatísticas (sozinho)
-    [sections[7]],                    // Sobre (sozinho)
+  const formatCount = (n) => n.toLocaleString(i18n.language);
+  const hasArticles = articles.length > 0;
+  const stageDetail = (included, total) => hasArticles && total > 0
+    ? t('nav.stepOf', { count: included, included: formatCount(included), total: formatCount(total) })
+    : '—';
+  // Fração já decidida de uma etapa (0 a 1); vazia enquanto nada chegou nela
+  const decidedShare = ({ pending, included, excluded }) => {
+    const total = pending + included + excluded;
+    return total > 0 ? (included + excluded) / total : 0;
+  };
+  const steps = [
+    { ...sections[0], done: protocolReady, progress: protocolReady ? 1 : 0, detail: t(protocolReady ? 'nav.stepReady' : 'nav.stepIncomplete') },
+    { ...sections[1], done: hasArticles, progress: hasArticles ? 1 : 0, detail: hasArticles ? t('nav.stepArticles', { count: articles.length, n: formatCount(articles.length) }) : '—' },
+    { ...sections[2], done: hasArticles && statistics.dataProcessing.pending === 0, progress: decidedShare(statistics.dataProcessing), detail: hasArticles ? t('nav.stepApproved', { count: statistics.dataProcessing.included, n: formatCount(statistics.dataProcessing.included) }) : '—' },
+    { ...sections[3], done: hasArticles && statistics.dataProcessing.included > 0 && statistics.filter1.pending === 0, progress: decidedShare(statistics.filter1), detail: stageDetail(statistics.filter1.included, statistics.dataProcessing.included) },
+    { ...sections[4], done: hasArticles && statistics.filter1.included > 0 && statistics.filter2.pending === 0, progress: decidedShare(statistics.filter2), detail: stageDetail(statistics.filter2.included, statistics.filter1.included) },
+    { ...sections[5], done: hasArticles && statistics.filter2.included > 0 && statistics.filter3.pending === 0, progress: decidedShare(statistics.filter3), detail: stageDetail(statistics.filter3.included, statistics.filter2.included) },
   ];
+  const extraSections = [sections[6], sections[7]];
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 m-0 p-0 transition-colors duration-200">
@@ -4863,92 +4879,84 @@ const SystematicReviewTool = () => {
             </div>
           </div>
 
-          {/* Navegação entre seções */}
-          <nav className="flex flex-wrap gap-2" data-tour="nav">
-            {sectionGroups.map((group, i) => (
-              <div key={i} className="flex flex-nowrap gap-2">
-                {group.map((section) => {
-                  const Icon = section.icon;
-                  const isDisabled = sectionsToCheck.includes(section.id) && articles.length === 0;
-                  const isActive = currentSection === section.id;
-
-                  return (
+          {/* Navegação em etapas: as seis primeiras seções são uma sequência, com o andamento de cada uma */}
+          <nav aria-label={t('nav.label')} className="flex flex-col lg:flex-row lg:items-stretch gap-2" data-tour="nav">
+            <ol ref={stepsListRef} className="flex flex-1 min-w-0 gap-1 overflow-x-auto overscroll-x-contain snap-x pb-1 -mb-1">
+              {steps.map((step, index) => {
+                const Icon = step.icon;
+                const isDisabled = sectionsToCheck.includes(step.id) && articles.length === 0;
+                const isActive = currentSection === step.id;
+                return (
+                  <li key={step.id} className="flex-none lg:flex-1 lg:min-w-[7.5rem] snap-start">
                     <button
-                      key={section.id}
-                      data-tour={`nav-${section.id}`}
-                      onClick={() => setCurrentSection(section.id)}
+                      data-tour={`nav-${step.id}`}
+                      onClick={() => setCurrentSection(step.id)}
                       disabled={isDisabled}
-                      title={isDisabled ? t('nav.importArticlesDisabled') : section.name}
-                      className={
-                        isDisabled
-                          ? 'text-sm px-3 py-2 rounded-lg flex items-center gap-2 border-none bg-gray-100 dark:bg-gray-900 hover:border-none disabled:cursor-not-allowed disabled:text-gray-400'
-                          : `text-sm px-3 py-2 rounded-lg flex items-center gap-2 transition-colors duration-200 ${isActive
-                            ? 'bg-indigo-600 text-white dark:bg-indigo-500'
-                            : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                          }`
-                      }
+                      aria-current={isActive ? 'page' : undefined}
+                      title={isDisabled ? t('nav.importArticlesDisabled') : undefined}
+                      className={`w-full h-full grid grid-cols-[auto_1fr] items-center gap-x-2 px-2.5 py-2 rounded-lg text-left border-none transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${isActive
+                        ? 'bg-indigo-100 dark:bg-indigo-900/50'
+                        : 'bg-transparent enabled:hover:bg-gray-100 dark:enabled:hover:bg-gray-700/60'
+                        }`}
                     >
-                      <Icon size={16} className="flex-shrink-0" />
-                      <span className={isActive ? 'inline whitespace-nowrap' : 'hidden sm:inline whitespace-nowrap'}>
-                        {section.name}
+                      {/* O anel em volta do número enche conforme a fração decidida da etapa */}
+                      <span
+                        aria-hidden="true"
+                        className={`row-span-2 step-ring ${isActive ? 'is-active' : ''} grid w-7 h-7 p-[3px] rounded-full`}
+                        style={{ '--p': step.done ? 1 : step.progress }}
+                      >
+                        <span
+                          className={`grid place-items-center rounded-full text-xs font-semibold tabular-nums ${isActive
+                            ? 'bg-indigo-100 text-indigo-700 dark:bg-[#282b5c] dark:text-indigo-200'
+                            : step.done
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                              : 'bg-white text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+                            }`}
+                        >
+                          {step.done && !isActive ? <Check size={13} /> : index + 1}
+                        </span>
+                      </span>
+                      <span className={`flex items-center gap-1.5 text-sm font-semibold whitespace-nowrap ${isActive ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-700 dark:text-gray-200'}`}>
+                        <Icon size={14} aria-hidden="true" className="flex-shrink-0" />
+                        {step.name}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap tabular-nums">
+                        {step.done && <span className="sr-only">{t('nav.stepDone')}, </span>}
+                        {step.detail}
+                        {!step.done && step.progress > 0 && (
+                          <span className="sr-only"> ({Math.round(step.progress * 100)}%)</span>
+                        )}
                       </span>
                     </button>
-                  );
-                })}
-              </div>
-            ))}
+                  </li>
+                );
+              })}
+            </ol>
+            <div className="flex lg:flex-col gap-1 lg:pl-2 lg:border-l border-gray-200 dark:border-gray-700">
+              {extraSections.map((section) => {
+                const Icon = section.icon;
+                const isDisabled = sectionsToCheck.includes(section.id) && articles.length === 0;
+                const isActive = currentSection === section.id;
+                return (
+                  <button
+                    key={section.id}
+                    data-tour={`nav-${section.id}`}
+                    onClick={() => setCurrentSection(section.id)}
+                    disabled={isDisabled}
+                    aria-current={isActive ? 'page' : undefined}
+                    title={isDisabled ? t('nav.importArticlesDisabled') : undefined}
+                    className={`flex-1 flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border-none transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${isActive
+                      ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 enabled:hover:bg-gray-200 dark:enabled:hover:bg-gray-600'
+                      }`}
+                  >
+                    <Icon size={16} aria-hidden="true" className="flex-shrink-0" />
+                    <span className="whitespace-nowrap">{section.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </nav>
-        </div>
-        <div data-tour="overview" className="bg-white dark:bg-gray-800 p-4 rounded-lg grid grid-cols-3 md:grid-cols-6 gap-3  mb-6 transition-colors duration-200">
-          <div className="grid grid-cols-[24px_1fr] gap-2 items-center w-full max-w-[140px] mx-auto ">
-            <Settings className="h-6 w-6 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
-            <div className="min-w-0">
-              <p className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight">
-                {protocolReady ? '✓' : '○'}
-              </p>
-              <p className="text-gray-600 dark:text-gray-400 text-xs leading-tight truncate">{t('overview.protocol')}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-[24px_1fr] gap-2 items-center w-full max-w-[140px] mx-auto">
-            <Upload className="h-6 w-6 flex-shrink-0 text-blue-600 dark:text-blue-400" />
-            <div className="min-w-0">
-              <p className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight">{articles.length}</p>
-              <p className="text-gray-600 dark:text-gray-400 text-xs leading-tight truncate">{t('overview.imported')}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-[24px_1fr] gap-2 items-center w-full max-w-[140px] mx-auto">
-            <Database className="h-6 w-6 flex-shrink-0 text-purple-600 dark:text-purple-400" />
-            <div className="min-w-0">
-              <p className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight">{statistics.dataProcessing.included}</p>
-              <p className="text-gray-600 dark:text-gray-400 text-xs leading-tight truncate">{t('overview.processed')}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-[24px_1fr] gap-2 items-center w-full max-w-[140px] mx-auto">
-            <Filter className="h-6 w-6 flex-shrink-0 text-green-600 dark:text-green-400" />
-            <div className="min-w-0">
-              <p className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight">{statistics.filter1.included}</p>
-              <p className="text-gray-600 dark:text-gray-400 text-xs leading-tight truncate">{t('overview.filter1')}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-[24px_1fr] gap-2 items-center w-full max-w-[140px] mx-auto">
-            <Filter className="h-6 w-6 flex-shrink-0 text-blue-600 dark:text-blue-400" />
-            <div className="min-w-0">
-              <p className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight">{statistics.filter2.included}</p>
-              <p className="text-gray-600 dark:text-gray-400 text-xs leading-tight truncate">{t('overview.filter2')}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-[24px_1fr] gap-2 items-center w-full max-w-[140px] mx-auto">
-            <FileText className="h-6 w-6 flex-shrink-0 text-purple-600 dark:text-purple-400" />
-            <div className="min-w-0">
-              <p className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight">{statistics.filter3.included}</p>
-              <p className="text-gray-600 dark:text-gray-400 text-xs leading-tight truncate">{t('overview.final')}</p>
-            </div>
-          </div>
         </div>
 
         {/* Conteúdo das seções */}
@@ -4979,6 +4987,10 @@ const SystematicReviewTool = () => {
             setArticles={setArticles}
             onUpdateStatus={handleUpdateStatus}
             statistics={statistics}
+            scoreZeroHistory={scoreZeroHistory}
+            scoreZeroResult={scoreZeroResult}
+            onExcludeScoreZero={onExcludeScoreZero}
+            onUndoScoreZero={onUndoScoreZero}
             detectDuplicates={detectDuplicates}
           // handleExclude={handleUpdateStatus}
           />
@@ -5040,24 +5052,35 @@ const SystematicReviewTool = () => {
             currentFilter={currentSection}
             onUpdateStatus={handleUpdateStatus}
             protocol={protocol}
-            assistSettings={jevSettings.apiKey ? jevSettings : null}
-            onSetSuggestions={handleSetSuggestions}
-            onAddUsage={handleAddUsage}
+            assistSettings={jevSettings.provider === 'chatgpt' || jevSettings.apiKey ? jevSettings : null}
+            onStartEvaluation={onStartEvaluation}
+            onApplyAi={onApplyAi}
+            onOpenRules={openAiRules}
             onDetailsOpenChange={setArticleDetailsOpen}
           />
         )}
+
+        <JevBatchModal job={evaluationJob} controller={evaluationController}
+          rule={evaluationJob ? autoRuleSummary(protocol, evaluationJob.stage) : null} onEditRules={openAiRules} />
 
         {showJevSettings && (
           <JevSettingsModal
             settings={jevSettings}
             aiConfig={protocol.aiConfig}
+            rulesOnly={rulesOnlySettings}
+            onSaveRules={aiConfig => {
+              setProtocol(prev => ({ ...prev, aiConfig: { ...prev.aiConfig, rules: aiConfig.rules, minQuality: aiConfig.minQuality } }));
+              evaluationController.refreshRules(aiConfig);
+              closeAiSettings();
+            }}
             onSave={(settings, aiConfig) => {
               setJevSettings(settings);
               saveJevSettings(settings);
               setProtocol(prev => ({ ...prev, aiConfig }));
-              setShowJevSettings(false);
+              evaluationController.refreshRules(aiConfig);
+              closeAiSettings();
             }}
-            onClose={() => setShowJevSettings(false)}
+            onClose={closeAiSettings}
           />
         )}
 
@@ -5135,6 +5158,8 @@ const SystematicReviewTool = () => {
             onClose={() => setShowSupportRequest(false)}
           />
         )}
+
+        <ConfirmDialog request={confirmRequest} onClose={closeConfirm} />
 
         <AlertModal
           isOpen={!!alertMessage}

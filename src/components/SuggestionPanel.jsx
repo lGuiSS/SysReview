@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from 'react-i18next';
 import { Check, X, HelpCircle, FileText, ChevronDown, RefreshCw } from "lucide-react";
-import { suggestionTooltip } from "../ai/messages.js";
-import { suggestionProbability } from "../ai/screening.js";
+import { suggestionTooltip, jevErrorMessage } from "../ai/messages.js";
+import { suggestionProbability, hasActionableDecision } from "../ai/screening.js";
+import { requiresReevaluation } from '../ai/modelCapabilities.js';
 
 const DECISION_STYLE = {
   included: { Icon: Check, cls: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300', key: 'assist.suggestInclude' },
@@ -29,8 +30,18 @@ export const SuggestionBadge = ({ suggestion, stale }) => {
   );
 };
 
-const ProbabilityRow = ({ id, label, value, tone }) => (
-  <div className="grid grid-cols-[3rem_1fr_3rem] items-center gap-2 text-sm">
+// Keep the review cause visible without adding more options to the status filter.
+export function AiReviewNotice({ state }) {
+  const { t } = useTranslation();
+  if (!state || (state.group !== 'review' && !state.warning)) return null;
+  const label = state.warning ? t('assist.reviewReason.previous-preserved')
+    : `${t('assist.filterManualReview')}: ${state.reasons.map(reason => t(`assist.reviewReason.${reason}`)).join(' \u00b7 ')}`;
+  return <p className="mt-1 max-w-sm text-xs text-amber-700 dark:text-amber-300 break-words"
+    title={state.error ? jevErrorMessage(t, state.error) : undefined}>{label}</p>;
+}
+
+const ProbabilityRow = ({ id, label, value, tone, unknownLabel }) => (
+  <div className="grid grid-cols-[2rem_minmax(0,1fr)_6rem] items-center gap-2 text-sm">
     <span className="font-medium text-gray-700 dark:text-gray-300">{id}</span>
     <div className="min-w-0">
       <p className="text-xs text-gray-500 dark:text-gray-400 truncate" title={label}>{label}</p>
@@ -38,17 +49,18 @@ const ProbabilityRow = ({ id, label, value, tone }) => (
         <div className={`h-full ${tone}`} style={{ width: `${percent(value)}%` }} />
       </div>
     </div>
-    <span className="text-xs text-right tabular-nums text-gray-600 dark:text-gray-400">{percent(value)}%</span>
+    <span className="text-xs text-right tabular-nums text-gray-600 dark:text-gray-400">{value == null ? unknownLabel : `${percent(value)}%`}</span>
   </div>
 );
 
 // Bloco recolhível "Sugestão" do modal de detalhes do artigo
-export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error, onEvaluate, onAccept }) => {
+export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error, onEvaluate, onAccept, reviewState }) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(true);
   const style = suggestion ? (DECISION_STYLE[suggestion.decision] ?? DECISION_STYLE.uncertain) : null;
   const labelOf = (category, id) => criteria.find(c => c.category === category && c.id === id)?.label ?? id;
-  const canAccept = suggestion && !stale && (suggestion.decision === 'included' || suggestion.decision === 'excluded');
+  const legacy = requiresReevaluation(suggestion);
+  const canAccept = !!onAccept && !stale && !legacy && hasActionableDecision(suggestion);
 
   const groups = suggestion ? [
     { key: 'inclusion', heading: t('assist.inclusionHeading'), values: suggestion.inclusion, tone: 'bg-green-500 dark:bg-green-400' },
@@ -79,6 +91,11 @@ export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error
 
       {open && (
         <div className="px-4 pb-4 space-y-3">
+          <AiReviewNotice state={reviewState} />
+          {legacy && <p role="status" className="text-amber-700 dark:text-amber-300">{t('assist.legacySuggestion')}</p>}
+          {suggestion?.unassessed?.length > 0 && <p className="text-amber-700 dark:text-amber-300">{t(suggestion.decision === 'excluded' ? 'assist.unassessedExcluded' : suggestion.provisionalInclusion ? 'assist.unassessedIncluded' : 'assist.unassessed', { criteria: suggestion.unassessed.map(c => c.id).join(', ') })}</p>}
+          {suggestion?.unassessed?.some(c => c.reason === 'evidence-not-found') && <p role="status" className="text-amber-700 dark:text-amber-300">{t('assist.evidenceNotFound', { criteria: suggestion.unassessed.filter(c => c.reason === 'evidence-not-found').map(c => c.id).join(', ') })}</p>}
+          {suggestion?.invalidResponse && <p className="text-red-700 dark:text-red-300">{t('assist.errorResponse', { criterion: '—' })}</p>}
           {suggestion?.fieldsUsed && (
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {t('assist.basedOn', { fields: suggestion.fieldsUsed.map(f => t(`assist.field.${f}`)).join(', ') })}
@@ -89,7 +106,7 @@ export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error
             <div key={group.key} className="space-y-1.5">
               <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">{group.heading}</p>
               {Object.entries(group.values).map(([id, p]) => (
-                <ProbabilityRow key={id} id={id} label={labelOf(group.key, id)} value={p} tone={group.tone} />
+                <ProbabilityRow key={id} id={id} label={labelOf(group.key, id)} value={p} tone={group.tone} unknownLabel={t('assist.notVerified')} />
               ))}
             </div>
           ))}
@@ -101,7 +118,7 @@ export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error
                 <div key={id} className="grid grid-cols-[3rem_1fr_auto] items-center gap-2 text-sm">
                   <span className="font-medium text-gray-700 dark:text-gray-300">{id}</span>
                   <span className="text-xs text-gray-500 dark:text-gray-400 truncate" title={labelOf('quality', id)}>{labelOf('quality', id)}</span>
-                  <span className="text-xs text-gray-600 dark:text-gray-400">{t(`assist.qualityLevel${q.score}`)}</span>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">{q.score == null ? t('assist.notVerified') : t(`assist.qualityLevel${q.score}`)}</span>
                 </div>
               ))}
             </div>
@@ -112,6 +129,10 @@ export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error
               {t('assist.evaluatedAt', { date: new Date(suggestion.evaluatedAt).toLocaleString(), model: suggestion.model })}
             </p>
           )}
+          {suggestion?.requestedEffort && <p className="text-xs text-gray-500 dark:text-gray-400">{t('assist.effortLabel')}: {t(`assist.effort.${suggestion.requestedEffort}`, { defaultValue: suggestion.requestedEffort })}</p>}
+          {suggestion?.evidence && <details className="text-xs text-gray-500 dark:text-gray-400"><summary>{t('assist.evidence')}</summary>
+            {Object.entries(suggestion.evidence).map(([id, quote]) => <p key={id} className="mt-2"><strong>{id.replace(/^(inc|exc|q)_/, '')}:</strong> {quote}</p>)}
+          </details>}
 
           {error && (
             <p className="text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 rounded-lg px-3 py-2">{error}</p>
@@ -121,7 +142,7 @@ export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error
             {canAccept && (
               <button
                 onClick={onAccept}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium active:scale-95 transition-all duration-150 ${suggestion.decision === 'included'
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium active:scale-95 transition duration-150 ${suggestion.decision === 'included'
                   ? 'text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40 hover:bg-green-200 dark:hover:bg-green-800/60'
                   : 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-800/60'
                   }`}
@@ -132,8 +153,8 @@ export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error
             )}
             <button
               onClick={onEvaluate}
-              disabled={evaluating}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium active:scale-95 transition-all duration-150
+              disabled={evaluating || !onEvaluate}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium active:scale-95 transition duration-150
                 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600
                 disabled:opacity-40 disabled:cursor-not-allowed"
             >

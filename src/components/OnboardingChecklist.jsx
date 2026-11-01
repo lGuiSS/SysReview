@@ -23,7 +23,7 @@ export const OnboardingChecklist = ({ items, isSectionAvailable, onGoToSection, 
 
   const progressBar = (
     <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-      <div className="h-full rounded-full bg-indigo-600 dark:bg-indigo-400 transition-all duration-300" style={{ width: `${progress}%` }} />
+      <div className="h-full rounded-full bg-indigo-600 dark:bg-indigo-400 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${progress}%` }} />
     </div>
   );
 
