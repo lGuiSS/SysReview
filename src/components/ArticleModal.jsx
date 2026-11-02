@@ -82,7 +82,7 @@ const ArticleModal = ({
   const statusConfig = {
     included:  { label: t('modals.article.statusIncluded'), cls: 'bg-green-100  dark:bg-green-900/50  text-green-800  dark:text-green-300'  },
     excluded:  { label: t('modals.article.statusExcluded'), cls: 'bg-red-100    dark:bg-red-900/50    text-red-800    dark:text-red-300'    },
-    duplicate: { label: t('modals.article.statusDuplicate'), cls: 'bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300' },
+    duplicate: { label: t('modals.article.statusDuplicate'), cls: 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200' },
   };
   const { label: statusLabel, cls: statusCls } = statusConfig[status] ?? {
     label: t('modals.article.statusPending'),

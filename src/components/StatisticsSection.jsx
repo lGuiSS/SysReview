@@ -585,7 +585,7 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
                 {previewLoading && (
                   <div className="flex items-center justify-center py-8 text-xs text-gray-400 gap-2">
                     <div className="animate-spin inline-block h-4 w-4 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
-                    {t('stats.generatingPreview', 'Gerando pré-visualização...')}
+                    {t('stats.generatingPreview', 'Gerando pré-visualização…')}
                   </div>
                 )}
                 {!previewLoading && previewUrl && (
@@ -1863,9 +1863,9 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                   {countryView === 'bar' && (
                     <>
                       <span className="text-xs text-gray-500 dark:text-gray-400">{t('stats.top')}</span>
-                      <input type="range" min={1} max={Math.max(1, countriesCount.length)} value={topNCountries}
+                      <input type="range" aria-label={t('stats.top')} min={1} max={Math.max(1, countriesCount.length)} value={topNCountries}
                         onChange={e => setTopNCountries(Number(e.target.value))} className="w-32 accent-indigo-600 cursor-pointer" />
-                      <input type="number" min={1} max={Math.max(1, countriesCount.length)} value={topNCountries}
+                      <input type="number" aria-label={t('stats.top')} min={1} max={Math.max(1, countriesCount.length)} value={topNCountries}
                         onChange={e => setTopNCountries(Math.min(Math.max(Number(e.target.value), 1), Math.max(1, countriesCount.length)))}
                         className="w-14 text-center text-xs rounded-md border border-gray-300 dark:border-gray-600
                                    bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
@@ -1913,9 +1913,9 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
               controls={
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500 dark:text-gray-400">{t('stats.top')}</span>
-                  <input type="range" min={1} max={Math.max(1, journalCount.length)} value={topNJournals}
+                  <input type="range" aria-label={t('stats.top')} min={1} max={Math.max(1, journalCount.length)} value={topNJournals}
                     onChange={e => setTopNJournals(Number(e.target.value))} className="w-32 accent-indigo-600 cursor-pointer" />
-                  <input type="number" min={1} max={Math.max(1, journalCount.length)} value={topNJournals}
+                  <input type="number" aria-label={t('stats.top')} min={1} max={Math.max(1, journalCount.length)} value={topNJournals}
                     onChange={e => setTopNJournals(Math.min(Math.max(Number(e.target.value), 1), Math.max(1, journalCount.length)))}
                     className="w-14 text-center text-xs rounded-md border border-gray-300 dark:border-gray-600
                                bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
@@ -1955,9 +1955,9 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
             extraControls: (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{t('stats.interval')}</span>
-                <input type="range" min={1} max={5} value={scoreBinSize}
+                <input type="range" aria-label={t('stats.interval')} min={1} max={5} value={scoreBinSize}
                   onChange={e => setScoreBinSize(Number(e.target.value))} className="w-32 accent-indigo-600 cursor-pointer" />
-                <input type="number" min={1} max={5} value={scoreBinSize}
+                <input type="number" aria-label={t('stats.interval')} min={1} max={5} value={scoreBinSize}
                   onChange={e => setScoreBinSize(Math.min(Math.max(Number(e.target.value), 1), 5))}
                   className="w-14 text-center text-xs rounded-md border border-gray-300 dark:border-gray-600
                              bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
@@ -2552,6 +2552,7 @@ const NetworkTab = ({ articles, theme }) => {
                 max="100"
                 value={labelOpacityThreshold}
                 onChange={(e) => setLabelOpacityThreshold(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                aria-label={t('stats.opacityLabel')}
                 className="w-16 px-2 py-1.5 pr-5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500 pointer-events-none">%</span>

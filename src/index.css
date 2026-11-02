@@ -320,3 +320,22 @@ button:focus-visible {
 .dark .driver-popover.sysreview-tour .driver-popover-arrow-side-bottom {
   border-bottom-color: #1f2937;
 }
+
+/* Toque: sem atraso de duplo toque e destaque discreto (o foco visível vem do :focus-visible) */
+html {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(79, 70, 229, 0.15);
+}
+
+/* Rolagem dentro de diálogos não arrasta a página por trás */
+[role="dialog"],
+[role="dialog"] *,
+[role="alertdialog"],
+[role="alertdialog"] * {
+  overscroll-behavior: contain;
+}
+
+/* Títulos sem palavra solitária na última linha */
+h1, h2, h3 {
+  text-wrap: balance;
+}

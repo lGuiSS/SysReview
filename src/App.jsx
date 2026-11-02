@@ -666,6 +666,7 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
               <input
                 ref={inputRef}
                 type="text"
+                aria-label={selected.length === 0 ? t('multiSelect.searchAdd') : t('multiSelect.searchMore')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => setIsOpenDrop(true)}
@@ -678,11 +679,11 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
 
           {/* Quick Actions */}
           <div className="flex items-center gap-3 mb-4 text-sm">
-            <button onClick={selectAll} className="text-gray-600 dark:text-white font-medium bg-transparent border-none p-0 cursor-pointer">
+            <button onClick={selectAll} className="text-gray-600 dark:text-white font-medium bg-transparent border-none p-0 cursor-pointer underline-offset-2 hover:text-gray-900 hover:underline dark:hover:text-gray-200">
               {t('multiSelect.selectAll')}
             </button>
             <span className="text-gray-300 dark:text-gray-600">|</span>
-            <button onClick={clearAll} className="text-gray-600 dark:text-white font-medium bg-transparent border-none p-0 cursor-pointer">
+            <button onClick={clearAll} className="text-gray-600 dark:text-white font-medium bg-transparent border-none p-0 cursor-pointer underline-offset-2 hover:text-gray-900 hover:underline dark:hover:text-gray-200">
               {t('multiSelect.clear')}
             </button>
             <span className="ml-auto text-gray-500 dark:text-gray-400 font-medium">
@@ -898,10 +899,25 @@ const CRITERIA_TONES = {
     ring: 'focus-visible:ring-blue-500',
     add: 'text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20',
   },
+  orange: {
+    chip: 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300',
+    count: 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300',
+    ring: 'focus-visible:ring-orange-500',
+    add: 'text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20',
+  },
+  indigo: {
+    chip: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300',
+    count: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300',
+    ring: 'focus-visible:ring-indigo-500',
+    add: 'text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20',
+  },
 };
 
+// Botões compactos das linhas de lista (remover, opções); p-0 e border-none anulam o estilo global de button
+const ROW_REMOVE_BTN = 'grid place-items-center w-8 h-8 p-0 rounded-md border-none bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/70 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-50 dark:disabled:hover:bg-red-900/40';
+
 // Lista editável de critérios (inclusão, exclusão, qualidade): código, texto e remover em cada linha
-const CriteriaList = ({ type, prefix, title, placeholder, addLabel, tone, criteria, onChange, onAdd, onRemove }) => {
+const CriteriaList = ({ type, prefix, title, placeholder, addLabel, tone, criteria, onChange, onAdd, onRemove, countLabel, removeLabel }) => {
   const { t } = useTranslation();
   const colors = CRITERIA_TONES[tone];
   const headingId = `${type}-heading`;
@@ -911,7 +927,7 @@ const CriteriaList = ({ type, prefix, title, placeholder, addLabel, tone, criter
       <div className="flex items-center justify-between gap-2 mb-2">
         <h3 id={headingId} className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300">{title}</h3>
         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums ${colors.count}`}>
-          {t('protocol.criteriaCount', { count: criteria.length })}
+          {countLabel ?? t('protocol.criteriaCount', { count: criteria.length })}
         </span>
       </div>
       <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
@@ -933,11 +949,11 @@ const CriteriaList = ({ type, prefix, title, placeholder, addLabel, tone, criter
                 <span className="grid place-items-center px-2">
                   <button
                     type="button"
-                    aria-label={`${t('protocol.removeCriterion')} ${code}`}
-                    title={t('protocol.removeCriterion')}
+                    aria-label={`${removeLabel || t('protocol.removeCriterion')} ${code}`}
+                    title={removeLabel || t('protocol.removeCriterion')}
                     disabled={criteria.length === 1}
                     onClick={() => onRemove(index)}
-                    className="grid place-items-center w-8 h-8 p-0 rounded-md border-none bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/70 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-50 dark:disabled:hover:bg-red-900/40"
+                    className={ROW_REMOVE_BTN}
                   >
                     <X size={16} aria-hidden="true" />
                   </button>
@@ -958,6 +974,170 @@ const CriteriaList = ({ type, prefix, title, placeholder, addLabel, tone, criter
         </div>
       </div>
     </div>
+  );
+};
+
+const EXTRACTION_TYPES = [
+  { value: 'Text', label: 'protocol.textType' },
+  { value: 'Pick on List', label: 'protocol.singleChoice' },
+  { value: 'Pick on Many', label: 'protocol.multipleChoice' },
+];
+const isPickType = (type) => type === 'Pick on List' || type === 'Pick on Many';
+
+// Critérios de extração: mesmo padrão da CriteriaList, com tipo de resposta e opções para os de escolha
+const ExtractionCriteriaList = ({ criteria, onChange, onTypeChange, onAdd, onRemove, onEditOptions }) => {
+  const { t } = useTranslation();
+  const colors = CRITERIA_TONES.orange;
+  const headingId = 'extractionCriteria-heading';
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <h3 id={headingId} className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300">{t('protocol.extractionCriteria')}</h3>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums ${colors.count}`}>
+          {t('protocol.criteriaCount', { count: criteria.length })}
+        </span>
+      </div>
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+        <ul aria-labelledby={headingId} className="divide-y divide-gray-200 dark:divide-gray-700">
+          {criteria.map((criterion, index) => {
+            const code = `EX${index + 1}`;
+            const pick = isPickType(criterion.type);
+            const optionCount = (criterion.items || []).filter(item => item.trim()).length;
+            return (
+              <li key={index} className="grid grid-cols-[auto_minmax(0,1fr)_auto] sm:grid-cols-[auto_11rem_minmax(0,1fr)_auto] items-stretch">
+                <span className="col-start-1 row-start-1 row-span-2 sm:row-span-1 grid place-items-center px-3 border-r border-gray-200 dark:border-gray-700">
+                  <span className={`min-w-[2.25rem] px-1.5 py-0.5 rounded-md text-center text-xs font-bold tabular-nums ${colors.chip}`}>{code}</span>
+                </span>
+                <select
+                  aria-label={t('protocol.extractionTypeLabel', { code })}
+                  value={criterion.type || 'Text'}
+                  onChange={(e) => onTypeChange(index, e.target.value)}
+                  className={`col-start-2 col-span-2 row-start-2 sm:col-start-2 sm:col-span-1 sm:row-start-1 w-full min-h-[2.75rem] px-3 py-2 text-sm border-0 border-t sm:border-t-0 sm:border-r border-gray-200 dark:border-gray-700 rounded-none bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset ${colors.ring}`}
+                >
+                  {EXTRACTION_TYPES.map(type => <option key={type.value} value={type.value}>{t(type.label)}</option>)}
+                </select>
+                <textarea
+                  aria-label={t('protocol.extractionValueLabel', { code })}
+                  className={`col-start-2 col-span-1 row-start-1 sm:col-start-3 auto-grow w-full px-3 py-2.5 border-none rounded-none bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 resize-none break-words focus:outline-none focus-visible:ring-2 focus-visible:ring-inset ${colors.ring}`}
+                  value={criterion.value}
+                  onChange={(e) => onChange(index, e.target.value)}
+                  placeholder={t('protocol.extractionPlaceholder')}
+                />
+                <span className="col-start-3 row-start-1 sm:col-start-4 flex items-center gap-1.5 px-2">
+                  {/* Sem opções o botão só ocupa o lugar, para alinhar a coluna de remover */}
+                  <button
+                    type="button"
+                    aria-label={`${t('protocol.editOptions')} ${code}`}
+                    title={t('protocol.editOptions')}
+                    disabled={!criterion.value.trim()}
+                    onClick={() => onEditOptions(criterion, index)}
+                    className={`relative grid place-items-center w-8 h-8 p-0 rounded-md border-none bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/40 dark:text-orange-300 dark:hover:bg-orange-900/70 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${pick ? '' : 'invisible'}`}
+                  >
+                    <List size={16} aria-hidden="true" />
+                    {pick && optionCount > 0 && (
+                      <span aria-hidden="true" className="absolute -top-1.5 -right-1.5 min-w-[1.1rem] h-[1.1rem] px-1 grid place-items-center rounded-full bg-orange-600 text-white text-[10px] font-bold tabular-nums">{optionCount}</span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`${t('protocol.removeCriterion')} ${code}`}
+                    title={t('protocol.removeCriterion')}
+                    disabled={criteria.length === 1}
+                    onClick={() => onRemove(index)}
+                    className={ROW_REMOVE_BTN}
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="border-t border-gray-200 dark:border-gray-700">
+          <button
+            type="button"
+            onClick={onAdd}
+            className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 border-none rounded-none bg-gray-50 dark:bg-gray-900/40 text-sm font-medium transition-colors duration-200 ${colors.add}`}
+          >
+            <PlusCircle size={16} aria-hidden="true" />
+            {t('protocol.addExtraction')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Contagens de uma etapa; a barra mostra a parte da base em cada situação
+const STAT_TONES = {
+  blue: { dot: 'bg-blue-500', bar: 'bg-blue-500' },
+  gray: { dot: 'bg-gray-400 dark:bg-gray-500', bar: 'bg-gray-300 dark:bg-gray-600' },
+  green: { dot: 'bg-green-500', bar: 'bg-green-500' },
+  red: { dot: 'bg-red-500', bar: 'bg-red-500' },
+  slate: { dot: 'bg-slate-600 dark:bg-slate-400', bar: 'bg-slate-600 dark:bg-slate-400' },
+};
+
+const StatSummary = ({ base, parts }) => {
+  const { i18n } = useTranslation();
+  const locale = intlLocale(i18n.language);
+  const total = base.value || 0;
+  const share = (value) => new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(total ? value / total : 0);
+  const tile = (item, isBase) => (
+    <div key={item.label} className="px-4 py-3 bg-white dark:bg-gray-800">
+      <dt className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300">
+        <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${STAT_TONES[item.tone].dot}`} />
+        {item.label}
+      </dt>
+      <dd className="mt-1 flex items-baseline gap-2">
+        <span className="text-xl sm:text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{(item.value || 0).toLocaleString(locale)}</span>
+        {!isBase && total > 0 && <span className="text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400">{share(item.value || 0)}</span>}
+      </dd>
+    </div>
+  );
+  return (
+    <div className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <dl className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-gray-200 dark:bg-gray-700">
+        {tile(base, true)}
+        {parts.map(part => tile(part, false))}
+      </dl>
+      <div aria-hidden="true" className="px-4 py-3 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex h-2 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+          {total > 0 && parts.filter(part => part.value > 0).map(part => (
+            <span key={part.label} className={STAT_TONES[part.tone].bar} style={{ width: `${(part.value / total) * 100}%` }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Critérios do protocolo exibidos numa etapa: código colorido + texto, só leitura
+const CriteriaSummary = ({ title, tone, criteria }) => {
+  const { t } = useTranslation();
+  const colors = CRITERIA_TONES[tone];
+  const items = criteria.filter(c => c.value?.trim());
+  return (
+    <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+        <h3 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100">{title}</h3>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums ${colors.count}`}>
+          {t('protocol.criteriaCount', { count: items.length })}
+        </span>
+      </div>
+      {items.length > 0 ? (
+        <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+          {items.map((criterion, index) => (
+            <li key={criterion.id || index} className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 px-4 py-2.5">
+              <span className={`min-w-[2.25rem] mt-px px-1.5 py-0.5 rounded-md text-center text-xs font-bold tabular-nums ${colors.chip}`}>{criterion.id}</span>
+              <span className="text-sm leading-relaxed text-gray-700 dark:text-gray-300 break-words">{criterion.value}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{t('filter.noCriteria')}</p>
+      )}
+    </section>
   );
 };
 
@@ -1272,152 +1452,14 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
             onAdd={() => addCriteria('qualityCriteria', '', '', protocol.qualityCriteria.length)}
             onRemove={(index) => removeCriteria({ type: 'qualityCriteria', index })}
           />
-          <div>
-            <h3 className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              {t('protocol.extractionCriteria')}
-            </h3>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-
-              {/* ── MOBILE: card list (hidden on sm+) ── */}
-              <div className="divide-y divide-gray-200 dark:divide-gray-700 sm:hidden overflow-y-auto">
-                {protocol.extractionCriteria.map((criteria, index) => (
-                  <div key={index} className="p-3 flex flex-col gap-2">
-
-                    {/* header row: label + action buttons */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-gray-500 dark:text-gray-400">
-                        {`EX${index + 1}`}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button aria-label={t('protocol.editOptions')}
-                          disabled={
-                            (criteria.type !== 'Pick on List' && criteria.type !== 'Pick on Many') ||
-                            criteria.value === ''
-                          }
-                          onClick={() => handleSeExCriteria(criteria, index)}
-                          className="p-1.5 rounded-full text-gray-600 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:text-gray-400 transition-colors"
-                        >
-                          <List size={15} />
-                        </button>
-                        <button aria-label={t('protocol.removeCriterion')}
-                          disabled={protocol.extractionCriteria.length === 1}
-                          onClick={() => removeCriteria({ type: 'extractionCriteria', index })}
-                          className="p-1.5 rounded-full text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-transparent transition-colors"
-                        >
-                          <XCircle size={15} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* type select */}
-                    <select
-                      value={criteria.type || 'Text'}
-                      onChange={(e) =>
-                        handleCriteriaChange('extractionCriteria', index, e.target.value, 'type')
-                      }
-                      className="w-full text-sm px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus-visible:ring-2 focus-visible:ring-orange-500 transition-colors"
-                    >
-                      <option value="Text">{t('protocol.textType')}</option>
-                      <option value="Pick on List">{t('protocol.singleChoice')}</option>
-                      <option value="Pick on Many">{t('protocol.multipleChoice')}</option>
-                    </select>
-
-                    {/* text input */}
-                    <input
-                      type="text"
-                      value={criteria.value}
-                      onChange={(e) =>
-                        handleCriteriaChange('extractionCriteria', index, e.target.value, 'value')
-                      }
-                      placeholder={t('protocol.extractionPlaceholder')}
-                      className="w-full text-sm px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus-visible:ring-2 focus-visible:ring-orange-500 transition-colors"
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* ── DESKTOP: original table (hidden below sm) ── */}
-              <div className="hidden sm:block ">
-                <table className="table-fixed min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {protocol.extractionCriteria.map((criteria, index) => (
-                      <tr key={index} className="transition-colors duration-200">
-                        <td className="w-16">
-                          <span className="px-4 py-2 text-gray-500 font-bold dark:text-gray-400 text-sm">
-                            {`EX${index + 1}`}
-                          </span>
-                        </td>
-                        <td className="w-40 p-0 h-px">
-                          <select
-                            value={criteria.type || 'Text'}
-                            onChange={(e) =>
-                              handleCriteriaChange('extractionCriteria', index, e.target.value, 'type')
-                            }
-                            className="h-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"
-                          >
-                            <option value="Text">{t('protocol.textType')}</option>
-                            <option value="Pick on List">{t('protocol.singleChoice')}</option>
-                            <option value="Pick on Many">{t('protocol.multipleChoice')}</option>
-                          </select>
-                        </td>
-                        <td className="p-0 h-px w-full max-w-0">
-                          <textarea
-                            className="w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 resize-none text-sm break-all"
-                            value={criteria.value}
-                            onChange={(e) =>
-                              handleCriteriaChange('extractionCriteria', index, e.target.value, 'value')
-                            }
-                            placeholder={t('protocol.extractionPlaceholder')}
-                          />
-                        </td>
-
-                        {!(criteria.type !== 'Pick on List' && criteria.type !== 'Pick on Many' || criteria.value === '') && (
-                          <td className="px-4 py-2 text-right whitespace-nowrap">
-
-
-                            <button aria-label={t('protocol.editOptions')}
-                              disabled={
-                                (criteria.type !== 'Pick on List' && criteria.type !== 'Pick on Many') ||
-                                criteria.value === ''
-                              }
-                              onClick={() => handleSeExCriteria(criteria, index)}
-                              className="text-black-600 dark:text-white-400 hover:text-white-800 dark:hover:text-white-300 p-1 rounded-full hover:bg-white-50 dark:hover:bg-white-900/50 transition-colors duration-200 disabled:cursor-not-allowed disabled:text-gray-500"
-                            >
-
-
-                              <List size={16} />
-                            </button>
-
-                          </td>
-                        )}
-                        <td className="px-4 py-2 text-right">
-                          <button aria-label={t('protocol.removeCriterion')}
-                            disabled={protocol.extractionCriteria.length === 1}
-                            onClick={() => removeCriteria({ type: 'extractionCriteria', index })}
-                            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors duration-200 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent disabled:hover:text-gray-500"
-                          >
-                            <XCircle size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* ── Add button (shared) ── */}
-              <button
-                onClick={() =>
-                  addCriteria('extractionCriteria', '', '', protocol.extractionCriteria.length)
-                }
-                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border-t border-gray-300 dark:border-gray-600 text-orange-600 dark:text-orange-400 hover:text-orange-800 dark:hover:text-orange-300 text-sm font-medium rounded-bl-lg rounded-br-lg transition-colors duration-200 flex items-center justify-center gap-2"
-              >
-                <PlusCircle size={16} />
-                {t('protocol.addExtraction')}
-              </button>
-            </div>
-          </div>
+          <ExtractionCriteriaList
+            criteria={protocol.extractionCriteria}
+            onChange={(index, value) => handleCriteriaChange('extractionCriteria', index, value, 'value')}
+            onTypeChange={(index, value) => handleCriteriaChange('extractionCriteria', index, value, 'type')}
+            onAdd={() => addCriteria('extractionCriteria', '', '', protocol.extractionCriteria.length)}
+            onRemove={(index) => removeCriteria({ type: 'extractionCriteria', index })}
+            onEditOptions={handleSeExCriteria}
+          />
         </div>
       </div>
 
@@ -1425,58 +1467,67 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
       {selectedExCriteria && (
         // document.body.overflowX = ''
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <DialogPanel onClose={() => handleSeExCriteria(null, null)} labelledBy="criteria-details-title" className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto transition-colors duration-200">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex justify-between items-start">
-                <h3 id="criteria-details-title" className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white">{selectedExCriteria.value}</h3>
-                <button
-                  onClick={() => handleSeExCriteria(null, null)}
-                  aria-label={t('modals.close')}
-                  className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
-                >
-                  <XCircle size={24} />
-                </button>
+          <DialogPanel onClose={() => handleSeExCriteria(null, null)} labelledBy="criteria-details-title" className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto overscroll-contain shadow-xl border border-gray-200 dark:border-gray-700 transition-colors duration-200">
+            <div className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 dark:text-orange-300">
+                  {`EX${selectedInExCriteria + 1}`} · {t(EXTRACTION_TYPES.find(type => type.value === selectedExCriteria.type)?.label || 'protocol.textType')}
+                </p>
+                <h3 id="criteria-details-title" className="mt-1 text-base sm:text-lg font-semibold text-gray-900 dark:text-white break-words">{selectedExCriteria.value}</h3>
               </div>
+              <button
+                type="button"
+                onClick={() => handleSeExCriteria(null, null)}
+                aria-label={t('modals.close')}
+                className="grid place-items-center w-8 h-8 p-0 shrink-0 rounded-md border-none bg-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
             </div>
-            <div className="p-6">
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {selectedExCriteria.items.map((criteria, index) => (
-                        <tr key={index} className="transition-colors duration-200">
-
-                          <td className="w-full p-0 h-px">
-                            <input
-                              type="text"
-                              className={index === 0 ? "w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-tl-lg focus-visible:ring-2 focus-visible:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm" : "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-orange-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"}
-                              value={criteria}
-                              onChange={(e) => handleCriteriaChange('extractionCriteria', selectedInExCriteria, e.target.value, 'items', index)}
-                              placeholder={t('protocol.qualityPlaceholder')}
-                            />
-                          </td>
-                          <td className="px-4 py-2 text-right">
-                            <button aria-label={t('protocol.removeOption')}
-                              // (type, index, typeEx, subIndex)
-                              disabled={selectedExCriteria.items.length === 1}
-                              onClick={() => removeCriteria({ type: 'extractionCriteria', index: selectedInExCriteria, atr: 'items', subIndex: index })}
-                              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors duration-200 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent disabled:hover:text-gray-500"
-                            >
-                              <XCircle size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className=" bg-gray-50 dark:bg-gray-900/50  rounded-bl-lg rounded-br-lg " >
+            <div className="p-5 sm:p-6">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <h4 id="criteria-options-heading" className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('protocol.optionsTitle')}</h4>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums ${CRITERIA_TONES.orange.count}`}>
+                  {t('protocol.optionsCount', { count: selectedExCriteria.items.length })}
+                </span>
+              </div>
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+                <ul aria-labelledby="criteria-options-heading" className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {selectedExCriteria.items.map((item, index) => (
+                    <li key={index} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-stretch">
+                      <span className="grid place-items-center px-3 border-r border-gray-200 dark:border-gray-700">
+                        <span className={`min-w-[1.75rem] px-1.5 py-0.5 rounded-md text-center text-xs font-bold tabular-nums ${CRITERIA_TONES.orange.chip}`}>{index + 1}</span>
+                      </span>
+                      <input
+                        type="text"
+                        aria-label={t('protocol.optionLabel', { n: index + 1 })}
+                        value={item}
+                        onChange={(e) => handleCriteriaChange('extractionCriteria', selectedInExCriteria, e.target.value, 'items', index)}
+                        placeholder={t('protocol.answerPlaceholder')}
+                        className="w-full min-h-[2.75rem] px-3 py-2 border-none rounded-none bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500"
+                      />
+                      <span className="grid place-items-center px-2">
+                        <button
+                          type="button"
+                          aria-label={`${t('protocol.removeOption')} ${index + 1}`}
+                          title={t('protocol.removeOption')}
+                          disabled={selectedExCriteria.items.length === 1}
+                          onClick={() => removeCriteria({ type: 'extractionCriteria', index: selectedInExCriteria, atr: 'items', subIndex: index })}
+                          className={ROW_REMOVE_BTN}
+                        >
+                          <X size={16} aria-hidden="true" />
+                        </button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="border-t border-gray-200 dark:border-gray-700">
                   <button
+                    type="button"
                     onClick={() => addCriteria('extractionCriteria', 'items', selectedInExCriteria)}
-                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-orange-600 dark:text-orange-400 hover:text-orange-800 dark:hover:text-orange-300 text-sm font-medium rounded-bl-lg rounded-br-lg rounded-tl-none rounded-tr-none transition-colors duration-200 flex items-center justify-center gap-2"
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 border-none rounded-none bg-gray-50 dark:bg-gray-900/40 text-sm font-medium transition-colors duration-200 ${CRITERIA_TONES.orange.add}`}
                   >
-                    <PlusCircle size={16} />
+                    <PlusCircle size={16} aria-hidden="true" />
                     {t('protocol.addAnswer')}
                   </button>
                 </div>
@@ -1591,179 +1642,101 @@ const ScoringSystemConfig = ({ scoringSystem, onUpdate, protocol, addCriteria, r
     }));
   };
 
+  const weightFields = [
+    { label: t('scoring.titleField'), key: 'title' },
+    { label: t('scoring.abstractField'), key: 'abstract' },
+    { label: t('scoring.keywordsField'), key: 'keywords' },
+  ];
+  const searchSettings = [
+    { key: 'caseInsensitive', label: t('scoring.caseInsensitive'), description: t('scoring.caseInsensitiveDesc') },
+    { key: 'exactMatch', label: t('scoring.exactMatch'), description: t('scoring.exactMatchDesc') },
+    { key: 'multipleOccurrences', label: t('scoring.multipleOccurrences'), description: t('scoring.multipleOccurrencesDesc') },
+  ];
+  const subheadCls = 'text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2';
+
   return (
-    <div className="bg-gray-50 dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-lg overflow-hidden transition-colors duration-200">
-      <div className="bg-blue-50 dark:bg-blue-900/30 p-4 border-b border-blue-200 dark:border-blue-800">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            <h4 className="text-sm sm:text-lg font-semibold text-blue-800 dark:text-blue-300">
-              {t('scoring.title')}
-            </h4>
-          </div>
-          {/* <div className="relative inline-flex items-center">
-            <input
-              type="checkbox"
-              checked={scoringSystem.enabled}
-              onChange={(e) => handleConfigChange('enabled', e.target.checked)}
-              className="peer sr-only"
-              id="scoring-toggle"
-            />
-            <label
-              htmlFor="scoring-toggle"
-              className="relative w-11 h-6 bg-gray-300 peer-checked:bg-blue-500 rounded-full cursor-pointer transition-colors duration-200"
-            >
-              <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 transform peer-checked:translate-x-5"></span>
-            </label>
-            <span className="ml-2 text-sm font-medium text-blue-700 dark:text-blue-400">
-              {scoringSystem.enabled ? 'Ativado' : 'Desativado'}
-            </span>
-          </div> */}
+    <section aria-labelledby="scoring-title" className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden transition-colors duration-200">
+      <div className="flex items-start gap-3 px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
+        <span className="grid place-items-center h-9 w-9 shrink-0 rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+          <BarChart3 className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <h3 id="scoring-title" className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">{t('scoring.title')}</h3>
+          <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-400">{t('scoring.description')}</p>
         </div>
-        <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-          {t('scoring.description')}
-        </p>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 p-5">
+        <CriteriaList
+          type="keywords"
+          prefix="#"
+          title={t('scoring.keywords')}
+          placeholder={t('scoring.keywordPlaceholder')}
+          addLabel={t('scoring.addKeywords')}
+          tone="indigo"
+          criteria={protocol.keywords.map(value => ({ value }))}
+          countLabel={t('scoring.keywordsCount', { count: protocol.keywords.filter(k => k.trim()).length })}
+          removeLabel={t('scoring.removeKeyword')}
+          onChange={(index, value) => handleCriteriaChange('keywords', index, value)}
+          onAdd={() => addCriteria('keywords')}
+          onRemove={(index) => removeCriteria({ type: 'keywords', index })}
+        />
 
-      <div className="p-4 space-y-6">
-        {/* Duas colunas internas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-indigo-100 dark:divide-indigo-800">
-
-          {/* Coluna esquerda — Keywords */}
-          <div className="p-4">
-            <div>
-              <h3 className="font-medium text-blue-700 dark:text-blue-300 mb-4">{t('scoring.keywords')}</h3>
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {protocol.keywords.map((criteria, index) => (
-                        <tr key={index} className="transition-colors duration-200">
-
-                          <td className="w-full p-0 h-px">
-                            <input
-                              type="text"
-                              // flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-20
-                              className={index === 0 ? "w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-tl-lg focus-visible:ring-2 focus-visible:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm" : "w-full h-full px-3 py-2 border border-gray-300 dark:border-gray-600 focus-visible:ring-2 focus-visible:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"}
-                              value={criteria}
-                              onChange={(e) => handleCriteriaChange('keywords', index, e.target.value)}
-                              placeholder={t('scoring.keywordPlaceholder')}
-                            />
-                          </td>
-                          <td className="px-4 py-2 text-right">
-                            <button aria-label={t('scoring.removeKeyword')}
-                              disabled={protocol.keywords.length === 1}
-                              onClick={() => removeCriteria({ type: 'keywords', index: index })}
-                              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/50 transition-colors duration-200 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent disabled:hover:text-gray-500"
-                            >
-                              <XCircle size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+        <div className="space-y-6 min-w-0">
+          <div>
+            <h4 className={subheadCls}>{t('scoring.fieldWeights')}</h4>
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+              {weightFields.map(field => (
+                <div key={field.key} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <label htmlFor={`weight-${field.key}`} className="text-sm font-medium text-gray-700 dark:text-gray-200">{field.label}</label>
+                    <span className="px-2 py-0.5 rounded-md text-xs font-semibold tabular-nums bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                      {t('scoring.points', { count: scoringSystem.weights[field.key] })}
+                    </span>
+                  </div>
+                  <input id={`weight-${field.key}`}
+                    type="range"
+                    min="0"
+                    max="10"
+                    value={scoringSystem.weights[field.key]}
+                    onChange={(e) => handleWeightChange(field.key, e.target.value)}
+                    className="w-full h-2 cursor-pointer accent-indigo-600 dark:accent-indigo-400"
+                  />
                 </div>
-                <div className=" bg-gray-50 dark:bg-gray-900/50  rounded-bl-lg rounded-br-lg " >
-                  <button
-                    onClick={() => addCriteria('keywords')}
-                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium rounded-bl-lg rounded-br-lg rounded-tl-none rounded-tr-none transition-colors duration-200 flex items-center justify-center gap-2"
-                  >
-                    <PlusCircle size={16} />
-                    {t('scoring.addKeywords')}
-                  </button>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
-          <div className="p-4">
-            <div>
-              <h5 className="font-medium text-blue-700 dark:text-blue-300 mb-4">{t('scoring.fieldWeights')}</h5>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {[
-                  { label: t('scoring.titleField'), key: 'title' },
-                  { label: t('scoring.abstractField'), key: 'abstract' },
-                  { label: t('scoring.keywordsField'), key: 'keywords' }
-                ].map(field => (
-                  <div key={field.key} className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg">
-                    <div className="flex justify-between items-center mb-2">
-                      <label htmlFor={`weight-${field.key}`} className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                        {field.label}
-                      </label>
-                      <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
-                        {scoringSystem.weights[field.key]} pts
-                      </span>
-                    </div>
-                    <input id={`weight-${field.key}`}
-                      type="range"
-                      min="0"
-                      max="10"
-                      value={scoringSystem.weights[field.key]}
-                      onChange={(e) => handleWeightChange(field.key, e.target.value)}
-                      className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600 dark:accent-blue-400"
+
+          <div>
+            <h4 className={subheadCls}>{t('scoring.searchSettings')}</h4>
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+              {searchSettings.map(setting => (
+                <label key={setting.key} className="flex items-start justify-between gap-4 px-4 py-3 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">{setting.label}</span>
+                    <span className="block mt-0.5 text-xs text-gray-500 dark:text-gray-400">{setting.description}</span>
+                  </span>
+                  <span className="relative shrink-0 mt-0.5">
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      checked={scoringSystem[setting.key]}
+                      onChange={(e) => handleConfigChange(setting.key, e.target.checked)}
+                      className="peer sr-only"
                     />
-                  </div>
-                ))}
-              </div>
+                    <span aria-hidden="true" className="block w-10 h-6 rounded-full bg-gray-300 dark:bg-gray-600 peer-checked:bg-indigo-600 dark:peer-checked:bg-indigo-500 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-gray-800 transition-colors duration-200" />
+                    <span aria-hidden="true" className="absolute left-1 top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-4" />
+                  </span>
+                </label>
+              ))}
             </div>
+          </div>
 
-            <div className="border-t border-blue-200 dark:border-blue-800 pt-6">
-              <h5 className="font-medium text-blue-700 dark:text-blue-300 mb-4">{t('scoring.searchSettings')}</h5>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {[
-                  {
-                    key: 'caseInsensitive',
-                    label: t('scoring.caseInsensitive'),
-                    description: t('scoring.caseInsensitiveDesc')
-                  },
-                  {
-                    key: 'exactMatch',
-                    label: t('scoring.exactMatch'),
-                    description: t('scoring.exactMatchDesc')
-                  },
-                  {
-                    key: 'multipleOccurrences',
-                    label: t('scoring.multipleOccurrences'),
-                    description: t('scoring.multipleOccurrencesDesc')
-                  }
-                ].map(setting => (
-                  <div key={setting.key} className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg">
-                    <label className="flex items-center gap-3 cursor-pointer overflow-hidden">
-                      <div className="relative flex-shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={scoringSystem[setting.key]}
-                          onChange={(e) => handleConfigChange(setting.key, e.target.checked)}
-                          className="peer sr-only"
-                        />
-                        <div className="w-10 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-500 transition-colors duration-200" />
-                        <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 peer-checked:translate-x-4" />
-                      </div>
-                      <span className="text-sm font-medium text-blue-700 dark:text-blue-400 leading-tight min-w-0 break-words">
-                        {setting.label}
-                      </span>
-                    </label>
-                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-500">{setting.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* <div className="pt-3 border-t border-blue-200 dark:border-blue-700">
-            <button
-              onClick={() => window.recalculateAllScores && window.recalculateAllScores()}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors duration-200"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Recalcular Pontuações
-            </button>
-          </div> */}
-
-            <div className="bg-blue-100 dark:bg-blue-800/50 p-3 rounded text-xs text-blue-700 dark:text-blue-300 mt-4">
-              <p><strong>{t('scoring.howItWorks')}</strong></p>
-              <ul className="list-disc list-inside mt-1 space-y-1">
+          <div className="flex gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+            <Info className="h-4 w-4 mt-0.5 shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="font-medium text-gray-800 dark:text-gray-100">{t('scoring.howItWorks')}</p>
+              <ul className="mt-1 list-disc pl-4 space-y-0.5">
                 <li>{t('scoring.how1')}</li>
                 <li>{t('scoring.how2')}</li>
                 <li>{t('scoring.how3')}</li>
@@ -1772,8 +1745,7 @@ const ScoringSystemConfig = ({ scoringSystem, onUpdate, protocol, addCriteria, r
           </div>
         </div>
       </div>
-
-    </div>
+    </section>
   );
 };
 
@@ -2272,24 +2244,14 @@ const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateS
         {t('dataprocessing.sectionTitle')}
       </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-        <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">{t('dataprocessing.imported')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-blue-900 dark:text-blue-200">{articles.length}</p>
-        </div>
-        <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-red-800 dark:text-red-300 mb-2">{t('dataprocessing.duplicates')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-red-900 dark:text-red-200">{statistics.dataProcessing.duplicate}</p>
-        </div>
-        <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-green-800 dark:text-green-300 mb-2">{t('dataprocessing.approved')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-green-900 dark:text-green-200">{statistics.dataProcessing.included}</p>
-        </div>
-        <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-red-800 dark:text-red-300 mb-2">{t('filter.excluded')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-red-900 dark:text-red-200">{statistics.dataProcessing.excluded}</p>
-        </div>
-      </div>
+      <StatSummary
+        base={{ label: t('dataprocessing.imported'), value: articles.length, tone: 'blue' }}
+        parts={[
+          { label: t('dataprocessing.duplicates'), value: statistics.dataProcessing.duplicate, tone: 'slate' },
+          { label: t('dataprocessing.approved'), value: statistics.dataProcessing.included, tone: 'green' },
+          { label: t('filter.excluded'), value: statistics.dataProcessing.excluded, tone: 'red' },
+        ]}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="p-4 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 rounded-lg transition-colors duration-200">
@@ -2417,46 +2379,19 @@ const Filter1Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
         {t('filter.section1Title')}
       </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-        <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">{t('filter.fromProcessing')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-blue-900 dark:text-blue-200">{filter1Articles.length}</p>
-        </div>
-        <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-2">{t('filter.pending')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-200">{statistics.filter1.pending}</p>
-        </div>
-        <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-green-800 dark:text-green-300 mb-2">{t('filter.included')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-green-900 dark:text-green-200">{statistics.filter1.included}</p>
-        </div>
-        <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-red-800 dark:text-red-300 mb-2">{t('filter.excluded')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-red-900 dark:text-red-200">{statistics.filter1.excluded}</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h4 className="font-semibold text-green-800 dark:text-green-300 mb-2">{t('filter.inclusionCriteria')}</h4>
-          <ul className="text-sm text-green-700 dark:text-green-400 space-y-1">
-            {
-              inclusionCriteria.filter(c => c.value.trim()).map((criterion, index) => (
-                <li key={index}>• {criterion.id + ' - ' + criterion.value}</li>
-              ))}
-          </ul>
-        </div>
-        <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h4 className="font-semibold text-red-800 dark:text-red-300 mb-2">{t('filter.exclusionCriteria')}</h4>
-          <ul className="text-sm text-red-900 dark:text-red-200 space-y-1">
-            {
-              exclusionCriteria.filter(c => c.value.trim()).map((criterion, index) => (
-                <li key={index}>• {criterion.id + ' - ' + criterion.value}</li>
-              ))}
-          </ul>
-        </div>
-      </div>
+      <StatSummary
+        base={{ label: t('filter.fromProcessing'), value: filter1Articles.length, tone: 'blue' }}
+        parts={[
+          { label: t('filter.pending'), value: statistics.filter1.pending, tone: 'gray' },
+          { label: t('filter.included'), value: statistics.filter1.included, tone: 'green' },
+          { label: t('filter.excluded'), value: statistics.filter1.excluded, tone: 'red' },
+        ]}
+      />
 
-
+      <div className="grid grid-cols-1 lg:grid-cols-2 items-start gap-6">
+        <CriteriaSummary title={t('filter.inclusionCriteria')} tone="green" criteria={inclusionCriteria} />
+        <CriteriaSummary title={t('filter.exclusionCriteria')} tone="red" criteria={exclusionCriteria} />
+      </div>
     </div>
   );
 };
@@ -2473,44 +2408,18 @@ const Filter2Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
         {t('filter.section2Title')}
       </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-        <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">{t('filter.fromFilter1')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-blue-900 dark:text-blue-200">{filter2Articles.length}</p>
-        </div>
-        <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-2">{t('filter.pending')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-200">{statistics.filter2.pending}</p>
-        </div>
-        <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-green-800 dark:text-green-300 mb-2">{t('filter.included')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-green-900 dark:text-green-200">{statistics.filter2.included}</p>
-        </div>
-        <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-red-800 dark:text-red-300 mb-2">{t('filter.excluded')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-red-900 dark:text-red-200">{statistics.filter2.excluded}</p>
-        </div>
-      </div>
+      <StatSummary
+        base={{ label: t('filter.fromFilter1'), value: filter2Articles.length, tone: 'blue' }}
+        parts={[
+          { label: t('filter.pending'), value: statistics.filter2.pending, tone: 'gray' },
+          { label: t('filter.included'), value: statistics.filter2.included, tone: 'green' },
+          { label: t('filter.excluded'), value: statistics.filter2.excluded, tone: 'red' },
+        ]}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h4 className="font-semibold text-green-800 dark:text-green-300 mb-2">{t('filter.inclusionCriteria')}</h4>
-          <ul className="text-sm text-green-700 dark:text-green-400 space-y-1">
-            {
-              inclusionCriteria.filter(c => c.value.trim()).map((criterion, index) => (
-                <li key={index}>• {criterion.id + ' - ' + criterion.value}</li>
-              ))}
-          </ul>
-        </div>
-        <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h4 className="font-semibold text-red-800 dark:text-red-300 mb-2">{t('filter.exclusionCriteria')}</h4>
-          <ul className="text-sm text-red-900 dark:text-red-200 space-y-1">
-            {
-              exclusionCriteria.filter(c => c.value.trim()).map((criterion, index) => (
-                <li key={index}>• {criterion.id + ' - ' + criterion.value}</li>
-              ))}
-          </ul>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 items-start gap-6">
+        <CriteriaSummary title={t('filter.inclusionCriteria')} tone="green" criteria={inclusionCriteria} />
+        <CriteriaSummary title={t('filter.exclusionCriteria')} tone="red" criteria={exclusionCriteria} />
       </div>
     </div>
   );
@@ -2528,55 +2437,19 @@ const Filter3Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
         {t('filter.section3Title')}
       </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-        <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">{t('filter.fromFilter2')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-blue-900 dark:text-blue-200">{filter3Articles.length}</p>
-        </div>
-        <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-2">{t('filter.pending')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-200">{statistics.filter3.pending}</p>
-        </div>
-        <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-green-800 dark:text-green-300 mb-2">{t('filter.included')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-green-900 dark:text-green-200">{statistics.filter3.included}</p>
-        </div>
-        <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h3 className="font-semibold text-red-800 dark:text-red-300 mb-2">{t('filter.excluded')}</h3>
-          <p className="text-lg sm:text-2xl font-bold text-red-900 dark:text-red-200">{statistics.filter3.excluded}</p>
-        </div>
-      </div>
+      <StatSummary
+        base={{ label: t('filter.fromFilter2'), value: filter3Articles.length, tone: 'blue' }}
+        parts={[
+          { label: t('filter.pending'), value: statistics.filter3.pending, tone: 'gray' },
+          { label: t('filter.included'), value: statistics.filter3.included, tone: 'green' },
+          { label: t('filter.excluded'), value: statistics.filter3.excluded, tone: 'red' },
+        ]}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h4 className="font-semibold text-green-800 dark:text-green-300 mb-2">{t('filter.inclusionCriteria')}</h4>
-          <ul className="text-sm text-green-700 dark:text-green-400 space-y-1">
-            {
-              inclusionCriteria.filter(c => c.value.trim()).map((criterion, index) => (
-                <li key={index}>• {criterion.id + ' - ' + criterion.value}</li>
-              ))}
-          </ul>
-        </div>
-        <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h4 className="font-semibold text-red-800 dark:text-red-300 mb-2">{t('filter.exclusionCriteria')}</h4>
-          <ul className="text-sm text-red-900 dark:text-red-200 space-y-1">
-            {
-              exclusionCriteria.filter(c => c.value.trim()).map((criterion, index) => (
-                <li key={index}>• {criterion.id + ' - ' + criterion.value}</li>
-              ))}
-          </ul>
-        </div>
-
-        <div className="bg-orange-50 dark:bg-orange-900/30 p-4 rounded-lg transition-colors duration-200">
-          <h4 className="font-semibold text-orange-800 dark:text-orange-300 mb-2">{t('filter.extractionCriteria')}</h4>
-          <ul className="text-sm text-orange-900 dark:text-orange-200 space-y-1">
-            {extractionCriteria.filter(c => c.value.trim()).map((criterion, index) => (
-              <li key={index}>
-                • {criterion.id + ' - ' + criterion.value}
-              </li>
-            ))}
-          </ul>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 items-start gap-6">
+        <CriteriaSummary title={t('filter.inclusionCriteria')} tone="green" criteria={inclusionCriteria} />
+        <CriteriaSummary title={t('filter.exclusionCriteria')} tone="red" criteria={exclusionCriteria} />
+        <CriteriaSummary title={t('filter.extractionCriteria')} tone="orange" criteria={extractionCriteria} />
       </div>
     </div>
   );
@@ -3017,6 +2890,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                 <input
                   type="text"
                   placeholder={t(searchField === 'all' ? 'articles.searchPlaceholder' : `articles.searchPlaceholder_${searchField}`)}
+                  aria-label={t(searchField === 'all' ? 'articles.searchPlaceholder' : `articles.searchPlaceholder_${searchField}`)}
                   className="w-full pl-10 pr-2 py-2 border-0 rounded-lg bg-transparent focus:ring-0 focus:outline-none text-gray-900 dark:text-white"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -3227,7 +3101,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                     <div className="flex items-center gap-1.5">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status === 'included' ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300' :
                       status === 'excluded' ? 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300' :
-                        status === 'duplicate' ? 'bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300' :
+                        status === 'duplicate' ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200' :
                           'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300'
                       }`}>
                       {status === 'included' ? t('articles.statusIncluded') :
@@ -3277,7 +3151,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                       </button>
                       <button aria-label={t('articles.duplicateTitle')}
                         onClick={() => { handleDuplicate(article) }}
-                        className="grid place-items-center w-[30px] h-[30px] p-0 rounded-md border-none transition-colors duration-200 bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-900/40 dark:text-orange-300 dark:hover:bg-orange-900/70"
+                        className="grid place-items-center w-[30px] h-[30px] p-0 rounded-md border-none transition-colors duration-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700/60 dark:text-slate-200 dark:hover:bg-slate-700"
                         data-tour={rowIndex === 0 ? 'action-duplicate' : undefined}
                         title={t('articles.duplicateTitle')}
                       >
@@ -3332,6 +3206,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                   onBlur={applyPageInput}
                   className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm text-center"
                   title={t('articles.pageJump')}
+                  aria-label={t('articles.pageJump')}
                 />
                 <span className="text-sm text-gray-700 dark:text-gray-300">
                   / {totalPages}
@@ -4762,7 +4637,7 @@ const SystematicReviewTool = () => {
   );
 
   const StatusIndicator = () => (
-    <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+    <div role="status" className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
       {/* {autoSaveHandleRef.current && isFileSystemAccessSupported() && (
         <button
           onClick={() => toggleAutoSave(!autoSaveEnabled)}
@@ -4829,6 +4704,20 @@ const SystematicReviewTool = () => {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 m-0 p-0 transition-colors duration-200">
+      <a href="#conteudo"
+        onClick={(e) => {
+          // O main só fica focável durante o salto; focável o tempo todo, um clique nele desenha o contorno
+          const main = document.getElementById('conteudo');
+          if (!main) return;
+          e.preventDefault();
+          main.setAttribute('tabindex', '-1');
+          main.focus();
+          main.scrollIntoView();
+          main.addEventListener('blur', () => main.removeAttribute('tabindex'), { once: true });
+        }}
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[10000] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-indigo-600 focus:text-white focus:shadow-lg">
+        {t('app.skipToContent')}
+      </a>
       <div className="w-full h-full px-4 py-6">
         {/* Header */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200">
@@ -4942,6 +4831,7 @@ const SystematicReviewTool = () => {
         </div>
 
         {/* Conteúdo das seções */}
+        <main id="conteudo" className="scroll-mt-4 focus:outline-none">
         {currentSection === 'protocol' && (
           <ProtocolSection protocol={protocol} onUpdateProtocol={setProtocol} />
         )}
@@ -5041,6 +4931,7 @@ const SystematicReviewTool = () => {
             onDetailsOpenChange={setArticleDetailsOpen}
           />
         )}
+        </main>
 
         <JevBatchModal job={evaluationJob} controller={evaluationController}
           rule={evaluationJob ? autoRuleSummary(protocol, evaluationJob.stage) : null} onEditRules={openAiRules} />

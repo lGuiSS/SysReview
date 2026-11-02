@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { X, ListChecks, Minimize2, Settings } from 'lucide-react';
 import { jevErrorMessage } from '../ai/messages.js';
 
-const secondaryBtn = 'px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 disabled:opacity-40';
-const primaryBtn = 'px-3 py-2 rounded-lg bg-indigo-600 text-white disabled:opacity-40';
+const secondaryBtn = 'px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 enabled:hover:bg-gray-200 dark:enabled:hover:bg-gray-600 transition-colors disabled:opacity-40';
+const primaryBtn = 'px-3 py-2 rounded-lg bg-indigo-600 text-white enabled:hover:bg-indigo-700 transition-colors disabled:opacity-40';
 
 const ModalShell = ({ title, onClose, children, footer, minimize = false }) => {
   const { t } = useTranslation();

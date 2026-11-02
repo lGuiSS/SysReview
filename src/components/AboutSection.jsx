@@ -72,6 +72,8 @@ const AboutSection = () => {
             <img
               src={authorPhoto}
               alt="Guilherme Silva"
+              width={96}
+              height={96}
               className="h-20 w-20 sm:h-24 sm:w-24 rounded-full object-cover border border-gray-200 dark:border-gray-700 shrink-0"
             />
             <div className="min-w-0">

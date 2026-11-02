@@ -32,7 +32,7 @@ export const OnboardingChecklist = ({ items, isSectionAvailable, onGoToSection, 
       <button
         data-tour="checklist"
         onClick={toggle}
-        className="fixed bottom-4 right-4 z-40 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg px-3 py-2 flex flex-col gap-1.5 cursor-pointer text-left"
+        className="fixed bottom-4 right-4 z-40 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg px-3 py-2 flex flex-col gap-1.5 cursor-pointer text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
         title={t('checklist.expand')}
         aria-expanded="false"
       >

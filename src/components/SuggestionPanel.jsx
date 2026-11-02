@@ -74,7 +74,7 @@ export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error
     <div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-xl">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
+        className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left rounded-xl transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
       >
         <div className="flex items-center gap-2 flex-wrap">
           <strong className="text-base text-gray-700 dark:text-gray-300">{t('assist.suggestionTitle')}</strong>
