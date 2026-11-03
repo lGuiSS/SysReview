@@ -14,7 +14,7 @@ const focusableIn = (node) => [...node.querySelectorAll(FOCUSABLE)]
  * Substitui a <div> do painel; o overlay continua com cada modal.
  */
 export const DialogPanel = forwardRef(function DialogPanel(
-  { onClose, labelledBy, label, role = 'dialog', closeOnEscape = true, fallbackFocus, className = '', children, ...props },
+  { onClose, labelledBy, label, role = 'dialog', closeOnEscape = true, fallbackFocus, focusPanel = false, className = '', children, ...props },
   forwardedRef
 ) {
   const panelRef = useRef(null);
@@ -35,7 +35,8 @@ export const DialogPanel = forwardRef(function DialogPanel(
     stack.push(panel);
 
     if (!panel.contains(document.activeElement)) {
-      (panel.querySelector('[autofocus]') || focusableIn(panel)[0] || panel).focus({ preventScroll: true });
+      // focusPanel: foca o próprio painel (sem contorno em botão ao usar atalhos de teclado)
+      (focusPanel ? panel : panel.querySelector('[autofocus]') || focusableIn(panel)[0] || panel).focus({ preventScroll: true });
     }
 
     const onKeyDown = (event) => {
@@ -68,7 +69,7 @@ export const DialogPanel = forwardRef(function DialogPanel(
       if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true });
       else if (fallbackRef.current) queueMicrotask(() => fallbackRef.current()?.focus());
     };
-  }, [closeOnEscape]);
+  }, [closeOnEscape]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div

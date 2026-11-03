@@ -1,4 +1,6 @@
-// A small, pure domain reducer keeps articles and the undo record atomic.
+// A small, pure domain reducer keeps articles and the undo records atomic.
+import { emptyDecisionHistory, recordDecision, canUndoDecision, restoreDecisionFields, markDecision } from './decisionHistory.js';
+
 export const emptyScoreZeroHistory = () => ({ version: 1, operation: null });
 export const eligibleForScoreZero = (a, includeApproved) => a.score === 0 && !a.isDuplicate &&
   (a.dataProcessingStatus === 'pending' || (includeApproved && a.dataProcessingStatus === 'included'));
@@ -21,10 +23,11 @@ export function normalizeScoreZeroHistory(history) {
   }) } };
 }
 
-export const initialArticleState = () => ({ articles: [], scoreZeroHistory: emptyScoreZeroHistory(), result: null });
+export const initialArticleState = () => ({ articles: [], scoreZeroHistory: emptyScoreZeroHistory(), decisionHistory: emptyDecisionHistory(), result: null });
 export function articleReducer(state, action) {
   if (action.type === 'restore') return {
-    articles: action.articles || [], scoreZeroHistory: normalizeScoreZeroHistory(action.history), result: null,
+    articles: action.articles || [], scoreZeroHistory: normalizeScoreZeroHistory(action.history),
+    decisionHistory: emptyDecisionHistory(), result: null,
   };
   if (action.type === 'update') {
     const next = typeof action.update === 'function' ? action.update(state.articles) : action.update;
@@ -52,7 +55,7 @@ export function articleReducer(state, action) {
       return { ...a, dataProcessingStatus: 'excluded', dataProcessingRevision: revision, lastModified: action.at };
     });
     if (!entries.length) return state;
-    return { articles, scoreZeroHistory: { version: 1, operation: {
+    return { ...state, articles, scoreZeroHistory: { version: 1, operation: {
       id: action.id, at: action.at, includeApproved: action.includeApproved, entries,
     } }, result: { type: 'excluded', count: entries.length } };
   }
@@ -74,8 +77,34 @@ export function articleReducer(state, action) {
         dataProcessingRevision: nextProcessingRevision(a), lastModified: action.at });
       return { ...e, state: 'restored' };
     });
-    return { articles: state.articles.map(a => restored.get(a.id) || a),
+    return { ...state, articles: state.articles.map(a => restored.get(a.id) || a),
       scoreZeroHistory: { version: 1, operation: { ...op, entries } }, result };
+  }
+  if (action.type === 'decision') {
+    // Uma decisão do usuário (com o reset das etapas seguintes) num único passo, registrada para desfazer
+    const before = state.articles.find(a => a.id === action.id);
+    if (!before) return state;
+    const next = articleReducer(state, { type: 'update', update: list => list.map(a => (a.id === action.id ? action.apply(a) : a)) });
+    const after = next.articles.find(a => a.id === action.id);
+    return { ...next, decisionHistory: recordDecision(state.decisionHistory, before, after, { id: action.entryId, at: action.at, ...action.meta }) };
+  }
+  if (action.type === 'undo-decision') {
+    const entry = state.decisionHistory.find(e => e.id === action.entryId);
+    if (!entry || entry.state !== 'available') return state;
+    const current = state.articles.find(a => a.id === entry.articleId);
+    if (!canUndoDecision(entry, current)) {
+      return { ...state, decisionHistory: markDecision(state.decisionHistory, entry.id, current ? 'changed' : 'missing') };
+    }
+    const restored = { ...restoreDecisionFields(current, entry), lastModified: action.at };
+    if (restored.dataProcessingStatus !== current.dataProcessingStatus) restored.dataProcessingRevision = nextProcessingRevision(current);
+    // Avisa a avaliação por IA em andamento de que a decisão da etapa mudou
+    for (const stage of ['filter1', 'filter2', 'filter3']) {
+      if (restored[`${stage}Status`] !== current[`${stage}Status`]) {
+        restored.aiDecisionRevisions = { ...restored.aiDecisionRevisions, [stage]: (current.aiDecisionRevisions?.[stage] || 0) + 1 };
+      }
+    }
+    const next = articleReducer(state, { type: 'update', update: list => list.map(a => (a.id === entry.articleId ? restored : a)) });
+    return { ...next, decisionHistory: markDecision(state.decisionHistory, entry.id, 'undone') };
   }
   return state;
 }

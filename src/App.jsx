@@ -4,6 +4,11 @@ import { mergeEvaluationEntries, applyAiSuggestions } from './ai/evaluationState
 import { requiresReevaluation } from './ai/modelCapabilities.js';
 import { duplicateDoiKey, duplicateTitleKey } from './duplicates.js';
 import { initialArticleState, articleReducer, nextProcessingRevision, canRestoreScoreZero, eligibleForScoreZero } from './scoreZeroHistory.js';
+import { applyStatusChange, applyDecision } from './articleStatus.js';
+import { DecisionUndoToast } from './components/DecisionUndoToast.jsx';
+import { Modal, ModalHeader, ModalFooter } from './components/Modal.jsx';
+import { MODAL_BACKDROP, MODAL_BODY, modalPanelClass } from './components/modalStyles.js';
+import { BUTTON } from './components/buttons.js';
 import { Search, Filter, ChartArea, Download, Table, Upload, CheckCircle, Check, XCircle, BookCopy, List, Clock, BarChart3, FileText, Database, RefreshCw, Settings, Sun, Moon, Bell, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Eye, PlusCircle, X, CopyX, CopyCheck, HeartHandshake, Languages, Save, Sparkles, Info, GraduationCap, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SvgIcon } from './icons/SysReviewIcon.jsx';
@@ -469,10 +474,9 @@ const Overlay = ({ children, footer, onClose, labelledBy }) => {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
+      className={`${MODAL_BACKDROP} z-[60]`}
       onClick={() => closeWithAnimation()}
       style={{
-        backgroundColor: 'rgba(0,0,0,0.5)',
         opacity: visible ? 1 : 0,
         transition: 'opacity 0.3s ease',
       }}
@@ -480,13 +484,13 @@ const Overlay = ({ children, footer, onClose, labelledBy }) => {
       <DialogPanel
         onClose={closeWithAnimation}
         labelledBy={labelledBy}
-        className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-xl w-full sm:max-w-3xl flex flex-col transition-colors duration-200"
+        className={modalPanelClass('lg')}
         style={sheetStyle}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Handle — mobile only */}
         <div
-          className="sm:hidden flex justify-center items-center py-4 -mx-0 px-4 select-none"
+          className="sm:hidden flex justify-center items-center pt-3 pb-1 px-4 select-none"
           style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
           onTouchStart={onHandleTouchStart}
           onTouchMove={onHandleTouchMove}
@@ -598,40 +602,21 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
         onClose={onClose}
         labelledBy="multiselect-criteria-title"
         footer={
-          <div className="flex-shrink-0 flex items-center justify-center gap-3 px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl sm:rounded-b-xl">
-            <button
-              onClick={() => onSelect(selected, 'included')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium touch-manipulation active:scale-95 transition duration-150 disabled:opacity-40 disabled:cursor-not-allowed text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/40 hover:bg-green-200 dark:hover:bg-green-800/60"
-            >
-              <CheckCircle size={16} />
-              {t('articles.includeTitle')}
-            </button>
-            <button
-              onClick={() => onSelect(selected, 'excluded')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium touch-manipulation active:scale-95 transition duration-150 disabled:opacity-40 disabled:cursor-not-allowed text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-800/60"
-            >
-              <XCircle size={16} />
+          <ModalFooter>
+            <button type="button" onClick={() => onSelect(selected, 'excluded')} className={BUTTON.danger}>
+              <XCircle size={16} aria-hidden="true" />
               {t('articles.excludeTitle')}
             </button>
-          </div>
+            <button type="button" onClick={() => onSelect(selected, 'included')} className={BUTTON.success}>
+              <CheckCircle size={16} aria-hidden="true" />
+              {t('articles.includeTitle')}
+            </button>
+          </ModalFooter>
         }
       >
-        {/* Header */}
-        <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 id="multiselect-criteria-title" className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white mt-2 sm:mt-0">
-            {t('multiSelect.selectCriteria')}
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label={t('modals.close')}
-            className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
-          >
-            <XCircle size={22} />
-          </button>
-        </div>
+        <ModalHeader titleId="multiselect-criteria-title" title={t('multiSelect.selectCriteria')} onClose={onClose} />
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4" ref={dropdownRef}>
+        <div className={MODAL_BODY} ref={dropdownRef}>
 
           {/* Search Input */}
           <div
@@ -773,44 +758,24 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
       onClose={onClose}
       labelledBy="multiselect-extraction-title"
       footer={
-        <div className="flex-shrink-0 flex items-center justify-end gap-3 px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl sm:rounded-b-xl">
-          <button
-            onClick={onClose}
-            className="flex-1 sm:flex-none px-5 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
-          >
+        <ModalFooter>
+          <button type="button" onClick={onClose} className={BUTTON.secondary}>
             {t('searchString.cancel')}
           </button>
-          <button
-            onClick={() => onSelect(resultsExtraction, 'extracted')}
-            className="flex-1 sm:flex-none px-5 py-2 text-sm font-medium rounded-lg border-none bg-indigo-600 hover:bg-indigo-700 text-white transition-colors touch-manipulation"
-          >
+          <button type="button" onClick={() => onSelect(resultsExtraction, 'extracted')} className={BUTTON.primary}>
             {t('multiSelect.confirm')}
           </button>
-        </div>
+        </ModalFooter>
       }
     >
-      {/* Header */}
-      <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="absolute left-1/2 -translate-x-1/2 top-2 w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full sm:hidden" />
-        <div className="min-w-0 mt-2 sm:mt-0">
-          <h3 id="multiselect-extraction-title" className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white">
-            {t('protocol.extractionCriteria')}
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 tabular-nums">
-            {t('multiSelect.answered', { count: answeredCount, total: visibleExtraction.length })}
-          </p>
-        </div>
-        <button
-          onClick={onClose}
-          aria-label={t('modals.close')}
-          className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
-        >
-          <XCircle size={22} />
-        </button>
-      </div>
+      <ModalHeader
+        titleId="multiselect-extraction-title"
+        title={t('protocol.extractionCriteria')}
+        description={<span className="tabular-nums">{t('multiSelect.answered', { count: answeredCount, total: visibleExtraction.length })}</span>}
+        onClose={onClose}
+      />
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4">
+      <div className={MODAL_BODY}>
         <div className="space-y-3">
           {visibleExtraction.map(({ criterion, index }) => (
             <div
@@ -1475,25 +1440,13 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
       {/* Modal de detalhes */}
       {selectedExCriteria && (
         // document.body.overflowX = ''
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <DialogPanel onClose={() => handleSeExCriteria(null, null)} labelledBy="criteria-details-title" className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto overscroll-contain shadow-xl border border-gray-200 dark:border-gray-700 transition-colors duration-200">
-            <div className="flex items-start justify-between gap-3 px-5 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 dark:text-orange-300">
-                  {`EX${selectedInExCriteria + 1}`} · {t(EXTRACTION_TYPES.find(type => type.value === selectedExCriteria.type)?.label || 'protocol.textType')}
-                </p>
-                <h3 id="criteria-details-title" className="mt-1 text-base sm:text-lg font-semibold text-gray-900 dark:text-white break-words">{selectedExCriteria.value}</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleSeExCriteria(null, null)}
-                aria-label={t('modals.close')}
-                className="grid place-items-center w-8 h-8 p-0 shrink-0 rounded-md border-none bg-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition-colors"
-              >
-                <X size={18} aria-hidden="true" />
-              </button>
-            </div>
-            <div className="p-5 sm:p-6">
+        <Modal
+          size="lg"
+          eyebrow={<span className="text-orange-700 dark:text-orange-300">{`EX${selectedInExCriteria + 1}`} · {t(EXTRACTION_TYPES.find(type => type.value === selectedExCriteria.type)?.label || 'protocol.textType')}</span>}
+          title={selectedExCriteria.value}
+          onClose={() => handleSeExCriteria(null, null)}
+        >
+            <div>
               <div className="flex items-center justify-between gap-2 mb-2">
                 <h4 id="criteria-options-heading" className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('protocol.optionsTitle')}</h4>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums ${CRITERIA_TONES.orange.count}`}>
@@ -1542,8 +1495,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                 </div>
               </div>
             </div>
-          </DialogPanel>
-        </div>
+        </Modal>
       )}
 
       {/* Sistema de Pontuação */}
@@ -1580,47 +1532,33 @@ const SearchStringModal = ({ isOpen, onClose, onConfirm, database }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <DialogPanel onClose={onClose} labelledBy="search-string-title" className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full transition-colors duration-200">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 id="search-string-title" className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white">
-            {t('searchString.title', { database })}
-          </h3>
-        </div>
-        <div className="p-6">
-          <div className="mb-4">
-            <label htmlFor="search-string-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {t('searchString.input')}
-            </label>
-            <textarea id="search-string-input"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200"
-              rows={4}
-              value={searchString}
-              onChange={(e) => setSearchString(e.target.value)}
-              placeholder={t('searchString.placeholder')}
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {t('searchString.required')}
-            </p>
-          </div>
-          <div className="flex gap-3 justify-end">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
-            >
-              {t('searchString.cancel')}
-            </button>
-            <button
-              onClick={handleConfirm}
-              disabled={!searchString.trim()}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors duration-200"
-            >
-              {t('searchString.confirm')}
-            </button>
-          </div>
-        </div>
-      </DialogPanel>
-    </div>
+    <Modal
+      size="sm"
+      title={t('searchString.title', { database })}
+      onClose={onClose}
+      footer={<>
+        <button type="button" onClick={onClose} className={BUTTON.secondary}>
+          {t('searchString.cancel')}
+        </button>
+        <button type="button" onClick={handleConfirm} disabled={!searchString.trim()} className={BUTTON.primary}>
+          {t('searchString.confirm')}
+        </button>
+      </>}
+    >
+      <label htmlFor="search-string-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {t('searchString.input')}
+      </label>
+      <textarea id="search-string-input"
+        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200"
+        rows={4}
+        value={searchString}
+        onChange={(e) => setSearchString(e.target.value)}
+        placeholder={t('searchString.placeholder')}
+      />
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+        {t('searchString.required')}
+      </p>
+    </Modal>
   );
 };
 
@@ -2471,7 +2409,7 @@ const Filter3Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
 const assistReady = (settings) => settings.provider === 'chatgpt' ? isLocalAiHost()
   : settings.provider === 'openai' ? !!settings.openaiKey : !!settings.apiKey;
 
-const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assistSettings = null, onStartEvaluation, onApplyAi, onDetailsOpenChange, onOpenRules }) => {
+const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, decisionHistory = [], onUndoDecision, onArticleViewChange, protocol, assistSettings = null, onStartEvaluation, onApplyAi, onDetailsOpenChange, onOpenRules }) => {
   const { t } = useTranslation();
   // Triagem assistida: só nos filtros 1-3 e com chave configurada
   const assistStage = STAGES.includes(currentFilter) ? currentFilter : null;
@@ -2486,7 +2424,8 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [selectedArticle, setSelectedArticle] = useState(null);
-  const detailsOpen = selectedArticle !== null;
+  // undefined (nenhum artigo na posição) também conta como fechado
+  const detailsOpen = selectedArticle != null;
   useEffect(() => {
     onDetailsOpenChange?.(detailsOpen);
     return () => onDetailsOpenChange?.(false);
@@ -2497,7 +2436,6 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
   const [interval, setInterval] = useState(0);
   const [currentArticle, setCurrentArticle] = useState(null);
   const [criterias, setCriterias] = useState([]);
-  const [optionExtraction, setOptionExtraction] = useState(null);
   // Obter página atual para a seção específica
   const currentPage = pagination[currentFilter] || 1;
   const [pageInput, setPageInput] = useState(currentPage);
@@ -2509,12 +2447,6 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
     setCurrentPage(page);
   };
   const janelaRef = useRef(null);
-  useEffect(() => {
-    const allEmpty = protocol.extractionCriteria.every(
-      criterion => criterion.value === ''
-    );
-    setOptionExtraction(allEmpty);
-  }, [protocol]);
 
   const getStatusField = (filter) => {
     switch (filter) {
@@ -2674,14 +2606,18 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
   };
 
   const handleInclude = (article, criterion = null, source = 'user') => {
-    onUpdateStatus(article.id, getStatusField(currentFilter), 'included', criterion, source);
+    if (onDecision) onDecision(article, getStatusField(currentFilter), 'included', criterion, source);
+    else onUpdateStatus(article.id, getStatusField(currentFilter), 'included', criterion, source);
     setShowCriterionModal(null);
   };
 
   const handleExclude = (article, criterion = null, source = 'user') => {
     const statusField = getStatusField(currentFilter);
-    onUpdateStatus(article.id, statusField, 'excluded', criterion, source);
-    resetDownstream(article.id, statusField);
+    if (onDecision) onDecision(article, statusField, 'excluded', criterion, source);
+    else {
+      onUpdateStatus(article.id, statusField, 'excluded', criterion, source);
+      resetDownstream(article.id, statusField);
+    }
     setShowCriterionModal(null);
   };
 
@@ -2692,8 +2628,11 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
 
   const handleDuplicate = (article, criterion = null) => {
     const statusField = getStatusField(currentFilter);
-    onUpdateStatus(article.id, statusField, 'duplicate', criterion);
-    resetDownstream(article.id, statusField);
+    if (onDecision) onDecision(article, statusField, 'duplicate', criterion);
+    else {
+      onUpdateStatus(article.id, statusField, 'duplicate', criterion);
+      resetDownstream(article.id, statusField);
+    }
     setShowCriterionModal(null);
   };
 
@@ -3279,8 +3218,22 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
           handleInclude={handleInclude}
           handleExclude={handleExclude}
           handleDuplicate={handleDuplicate}
-          setShowCriterionModal={setShowCriterionModal}
-          optionExtraction={optionExtraction}
+          handleExtraction={handleExtraction}
+          criteriaOptions={criterias}
+          extractionCriteria={protocol.extractionCriteria}
+          initialCriteria={[
+            ...(selectedArticle.inclusionCriterion ?? []),
+            ...(selectedArticle.exclusionCriterion ?? []),
+            ...(selectedArticle.qualityCriteria ?? []),
+          ]}
+          protocolTerms={protocol.keywords ?? []}
+          scoring={protocol.scoringSystem}
+          projectView={protocol.articleView}
+          onProjectViewChange={onArticleViewChange}
+          allArticles={articles}
+          decisionHistory={decisionHistory}
+          onUndoDecision={onUndoDecision}
+          onOpenArticle={getCurrentArticle}
           janelaRef={janelaRef}
           assist={assistStage ? {
             suggestion: currentSuggestion(selectedArticle),
@@ -3405,16 +3358,11 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
   );
 };
 
-const STATUS_FIELD_STAGE = {
-  filter1Status: 'filter1',
-  filter2Status: 'filter2',
-  filter3Status: 'filter3',
-};
 
 // Componente principal
 const SystematicReviewTool = () => {
   const { t, i18n } = useTranslation();
-  const [{ articles, scoreZeroHistory, result: scoreZeroResult }, dispatchArticles] = useReducer(articleReducer, undefined, initialArticleState);
+  const [{ articles, scoreZeroHistory, decisionHistory, result: scoreZeroResult }, dispatchArticles] = useReducer(articleReducer, undefined, initialArticleState);
   const setArticles = useCallback(update => dispatchArticles({ type: 'update', update }), []);
   const onExcludeScoreZero = includeApproved => dispatchArticles({ type: 'exclude-zero', includeApproved, id: crypto.randomUUID(), at: new Date().toISOString() });
   const onUndoScoreZero = () => dispatchArticles({ type: 'undo-zero', at: new Date().toISOString() });
@@ -4393,57 +4341,27 @@ const SystematicReviewTool = () => {
 
   const handleUpdateStatus = useCallback((id, statusType, status, criterion = null, source = 'user') => {
     const at = new Date().toISOString();
-    setArticles(prev => prev.map(article => {
-      if (article.id !== id) return article;
-
-      let base = status !== 'extracted'
-        ? { ...article, [statusType]: status, lastModified: at } :
-        { ...article, lastModified: at };
-      if (statusType === 'dataProcessingStatus') base.dataProcessingRevision = nextProcessingRevision(article);
-
-      // Origem da decisão por filtro (manual, sugestão aceita ou aplicada em lote)
-      const stage = STATUS_FIELD_STAGE[statusType];
-      if (stage) base.aiDecisionRevisions = { ...article.aiDecisionRevisions, [stage]: (article.aiDecisionRevisions?.[stage] || 0) + 1 };
-      if (stage && status !== 'extracted') {
-        const { [stage]: _previous, ...otherSources } = article.decisionSource ?? {};
-        base = {
-          ...base,
-          decisionSource: status === 'included' || status === 'excluded'
-            ? { ...otherSources, [stage]: source }
-            : otherSources,
-        };
-      }
-
-      // Cascade reset — apenas atualiza o campo de status
-      if (status === null) return base;
-
-      // Extração
-      if (status === 'extracted') {
-        return { ...base, extractionCriteria: criterion };
-      }
-
-      // Duplicata
-      if (status === 'duplicate') {
-        return { ...base, isDuplicate: true };
-      }
-
-      // included / excluded — processa critérios
-      const criteria = (Array.isArray(criterion) ? criterion : [criterion]).filter(Boolean);
-
-      const byCat = (cat) => criteria.filter(c => c.category === cat);
-      const newInclusionCriteria = byCat('inclusion');
-      const newExclusionCriteria = byCat('exclusion');
-      const newQualityCriteria = byCat('quality');
-
-      return {
-        ...base,
-        isDuplicate: false,
-        inclusionCriterion: newInclusionCriteria,
-        exclusionCriterion: newExclusionCriteria,
-        qualityCriteria: newQualityCriteria,
-      };
-    }));
+    setArticles(prev => prev.map(article => (article.id === id ? applyStatusChange(article, statusType, status, criterion, source, at) : article)));
   }, [setArticles]);
+
+  // Decisão do usuário (incluir/excluir/duplicata): um passo só, registrado para desfazer
+  const decisionSeqRef = useRef(0);
+  const [lastDecisionId, setLastDecisionId] = useState(null);
+  const handleDecision = useCallback((article, statusType, status, criterion = null, source = 'user') => {
+    const at = new Date().toISOString();
+    const entryId = `decision-${Date.now()}-${++decisionSeqRef.current}`;
+    dispatchArticles({
+      type: 'decision', id: article.id, entryId, at,
+      meta: { statusType, status, title: article.title },
+      apply: a => applyDecision(a, statusType, status, criterion, source, at),
+    });
+    setLastDecisionId(entryId);
+  }, []);
+  const undoDecision = useCallback(entryId => dispatchArticles({ type: 'undo-decision', entryId, at: new Date().toISOString() }), []);
+  // Decisões tomadas no detalhe já mostram o aviso nele; ao fechar, não reaparecem aqui
+  useEffect(() => { if (!articleDetailsOpen) setLastDecisionId(null); }, [articleDetailsOpen]);
+  // Preferências do detalhe do artigo também vão para o projeto (o arquivo prevalece ao abrir)
+  const handleArticleViewChange = useCallback(view => setProtocol(prev => ({ ...prev, articleView: view })), []);
 
   // Salva as sugestões geradas para um filtro: entries = [{ id, suggestion }]
   const handleSetSuggestions = useCallback((stage, entries, session) => {
@@ -4934,6 +4852,10 @@ const SystematicReviewTool = () => {
             articles={articles}
             currentFilter={currentSection}
             onUpdateStatus={handleUpdateStatus}
+            onDecision={handleDecision}
+            decisionHistory={decisionHistory}
+            onUndoDecision={undoDecision}
+            onArticleViewChange={handleArticleViewChange}
             protocol={protocol}
             assistSettings={assistReady(jevSettings) ? jevSettings : null}
             onStartEvaluation={onStartEvaluation}
@@ -5026,6 +4948,12 @@ const SystematicReviewTool = () => {
             forceCollapsed={tourStage === 'running'}
           />
         )}
+
+        <DecisionUndoToast
+          entry={articleDetailsOpen ? null : decisionHistory.find(e => e.id === lastDecisionId) ?? null}
+          onUndo={undoDecision}
+          onDismiss={() => setLastDecisionId(null)}
+        />
 
         {showSupportRequest && (
           <SupportRequestModal

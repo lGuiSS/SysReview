@@ -162,7 +162,8 @@ button:hover {
 
 /* Contorno só na navegação por teclado, não ao clicar */
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
 }
 
 @media (prefers-color-scheme: light) {
@@ -338,4 +339,17 @@ html {
 /* Títulos sem palavra solitária na última linha */
 h1, h2, h3 {
   text-wrap: balance;
+}
+
+/* Avisos flutuantes (Toast): entrada, saída e barra de tempo.
+   Usa a propriedade `translate` para não apagar o `transform` de centralização do Tailwind. */
+@keyframes toast-in { from { opacity: 0; translate: 0 var(--toast-dy, -8px); } to { opacity: 1; translate: 0 0; } }
+@keyframes toast-out { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 0 var(--toast-dy, -8px); } }
+@keyframes toast-progress { from { width: 100%; } to { width: 0%; } }
+.toast-enter { animation: toast-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.toast-exit { animation: toast-out 0.25s cubic-bezier(0.55, 0, 0.45, 1) forwards; }
+.toast-progress { animation-name: toast-progress; animation-timing-function: linear; animation-fill-mode: forwards; }
+@media (prefers-reduced-motion: reduce) {
+  /* Sem animação a barra apareceria já vazia: oculta (o aviso continua sumindo no tempo certo) */
+  .toast-progress { visibility: hidden; }
 }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from 'react-i18next';
-import { Check, X, HelpCircle, FileText, ChevronDown, RefreshCw } from "lucide-react";
+import { Check, X, HelpCircle, FileText, ChevronDown, RefreshCw, Sparkles } from "lucide-react";
 import { suggestionTooltip, jevErrorMessage } from "../ai/messages.js";
 import { suggestionProbability, hasActionableDecision } from "../ai/screening.js";
 import { requiresReevaluation } from '../ai/modelCapabilities.js';
@@ -77,7 +77,8 @@ export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error
         className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left rounded-xl transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
       >
         <div className="flex items-center gap-2 flex-wrap">
-          <strong className="text-base text-gray-700 dark:text-gray-300">{t('assist.suggestionTitle')}</strong>
+          <Sparkles className="h-4 w-4 text-indigo-500 dark:text-indigo-400" aria-hidden="true" />
+          <strong className="text-base text-gray-900 dark:text-white">{t('assist.suggestionTitle')}</strong>
           {style && (
             <span className={`px-2 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full ${style.cls} ${stale ? 'opacity-60' : ''}`}>
               <style.Icon size={12} strokeWidth={2.5} />

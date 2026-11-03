@@ -3,7 +3,8 @@ import { useState, useEffect, useRef, useCallback, forwardRef, useMemo, useImper
 import { createRoot } from 'react-dom/client';
 import { useTranslation } from 'react-i18next';
 import { ChartArea, Download, X, Map, Earth, Network, BarChart3, HelpCircle, Info } from 'lucide-react';
-import { DialogPanel } from './Dialog.jsx';
+import { Modal } from './Modal.jsx';
+import { BUTTON } from './buttons.js';
 import { useFormat } from '../i18n/format.js';
 import {
   Line, Bar, Cell, Pie, PieChart, XAxis, YAxis,
@@ -522,49 +523,42 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
   const resultH = mmToPx(heightMm, dpi);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50 p-4">
-      <DialogPanel onClose={onClose} labelledBy="export-config-title" className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 max-h-[92vh] flex flex-col">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Download className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600 dark:text-indigo-400" />
-            <h2 id="export-config-title" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white">
-              {t('stats.exportConfigTitle', 'Configurar Exportação')}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label={t('modals.close')}
-            className="p-1 sm:p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition-colors"
-          >
-            <X className="h-4 w-4 sm:h-5 sm:w-5" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto">
+    <Modal
+      size="md"
+      title={t('stats.exportConfigTitle', 'Configurar Exportação')}
+      icon={Download}
+      onClose={onClose}
+      footer={<>
+        <button type="button" onClick={onClose} className={BUTTON.secondary}>
+          {t('modals.confirm.cancel')}
+        </button>
+        <button type="button" onClick={handleExport} className={BUTTON.primary}>
+          {t('stats.exportButton', 'Exportar')}
+        </button>
+      </>}
+    >
+        <div className="space-y-4">
           <div className="flex gap-2 sm:gap-3">
             <div className="flex-1">
-              <label htmlFor="export-width-mm" className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2 block">{t('stats.widthMm', 'Largura (mm)')}</label>
+              <label htmlFor="export-width-mm" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">{t('stats.widthMm', 'Largura (mm)')}</label>
               <input id="export-width-mm" type="number" value={widthMm} min={10} max={150} onChange={e => handleWidthChange(e.target.value)}
-                className="w-full px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border-gray-200 dark:border-gray-600" />
+                className="w-full h-10 px-3 text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border-gray-300 dark:border-gray-600" />
             </div>
             <div className="flex-1">
-              <label htmlFor="export-height-mm" className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2 block">{t('stats.heightMm', 'Altura (mm)')}</label>
+              <label htmlFor="export-height-mm" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">{t('stats.heightMm', 'Altura (mm)')}</label>
               <input id="export-height-mm" type="number" value={heightMm} min={10} max={150} onChange={e => handleHeightChange(e.target.value)} disabled={keepRatio && !lockedAspect}
-                className={`w-full px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border-gray-200 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed`} />
+                className="w-full h-10 px-3 text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border-gray-300 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed" />
             </div>
             <div className="w-24">
-              <label htmlFor="export-font-pt" className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1.5 sm:mb-2 block">{t('stats.fontPt', 'Fonte (pt)')}</label>
+              <label htmlFor="export-font-pt" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">{t('stats.fontPt', 'Fonte (pt)')}</label>
               <input id="export-font-pt" type="number" min={6} max={24} value={fontPt} onChange={e => { setExportWarning(null); setFontPt(e.target.value); }}
-                className="w-full px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border-gray-200 dark:border-gray-600" />
+                className="w-full h-10 px-3 text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border-gray-300 dark:border-gray-600" />
             </div>
           </div>
 
           <div className="flex items-center justify-between gap-2">
             {!lockedAspect && (
-              <label className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-300 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                 <input type="checkbox" checked={keepRatio} onChange={e => handleKeepRatioChange(e.target.checked)}
                   className="accent-indigo-500" />
                 {t('stats.keepRatio', 'Manter proporção')}
@@ -572,7 +566,7 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
             )}
             {lockedAspect && <div />}
             {format === 'png' && (
-              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{t('stats.dpi', 'Resolução (DPI)')}: <span className="text-gray-800 dark:text-gray-200">{dpi}</span></div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">{t('stats.dpi', 'Resolução (DPI)')}: <span className="text-gray-800 dark:text-gray-200">{dpi}</span></div>
             )}
           </div>
 
@@ -604,37 +598,17 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
             </div>
           )}
 
-          <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-3">
+          <div className="text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-3">
             {t('stats.resultSize', 'Tamanho resultante')}: <span className="text-gray-800 dark:text-gray-200">{resultW} × {resultH} px</span>
           </div>
-        </div>
 
-        {/* Footer */}
-        {exportWarning && (
-          <div className="px-4 sm:px-6 pb-2">
-            <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2">
+          {exportWarning && (
+            <p role="alert" className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2">
               {exportWarning}
             </p>
-          </div>
-        )}
-        <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 pb-4 sm:pb-6">
-          <button onClick={onClose}
-            className="flex-1 px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
-              bg-gray-100 hover:bg-gray-200 text-gray-700
-              dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300
-              transition-colors duration-150">
-            {t('modals.confirm.cancel')}
-          </button>
-          <button onClick={handleExport}
-            className="flex-1 px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
-              bg-indigo-600 hover:bg-indigo-700 text-white
-              dark:bg-indigo-500 dark:hover:bg-indigo-600
-              transition-colors duration-150">
-            {t('stats.exportButton', 'Exportar')}
-          </button>
+          )}
         </div>
-      </DialogPanel>
-    </div>
+    </Modal>
   );
 };
 
@@ -653,54 +627,30 @@ const NetworkHelpModal = ({ isOpen, onClose }) => {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50 p-4">
-      <DialogPanel onClose={onClose} labelledBy="network-help-title" className="w-full sm:w-[26rem] md:w-[30rem] bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600 dark:text-indigo-400" />
-            <h2 id="network-help-title" className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white">
-              {t('stats.networkHelpTitle')}
-            </h2>
+    <Modal
+      size="md"
+      title={t('stats.networkHelpTitle')}
+      icon={HelpCircle}
+      onClose={onClose}
+      footer={
+        <button type="button" onClick={onClose} className={BUTTON.primary}>
+          {t('modals.alert.ok')}
+        </button>
+      }
+    >
+      <div className="space-y-5">
+        {sections.map(section => (
+          <div key={section.title}>
+            <h3 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white mb-1.5">
+              {section.title}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+              {section.text}
+            </p>
           </div>
-          <button
-            onClick={onClose}
-            aria-label={t('modals.close')}
-            className="p-1 sm:p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition-colors"
-          >
-            <X className="h-4 w-4 sm:h-5 sm:w-5" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-h-[60vh] overflow-y-auto">
-          {sections.map(section => (
-            <div key={section.title}>
-              <h4 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-white mb-1 sm:mb-1.5">
-                {section.title}
-              </h4>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                {section.text}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end px-4 sm:px-6 pb-4 sm:pb-6">
-          <button
-            onClick={onClose}
-            className="px-4 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
-              bg-indigo-600 hover:bg-indigo-700 text-white
-              dark:bg-indigo-500 dark:hover:bg-indigo-600
-              transition-colors duration-150"
-          >
-            {t('modals.alert.ok')}
-          </button>
-        </div>
-      </DialogPanel>
-    </div>
+        ))}
+      </div>
+    </Modal>
   );
 };
 

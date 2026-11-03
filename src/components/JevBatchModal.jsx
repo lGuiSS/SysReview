@@ -1,26 +1,29 @@
-import { useId } from 'react';
-import { DialogPanel } from './Dialog.jsx';
+import { Modal } from './Modal.jsx';
+import { BUTTON } from './buttons.js';
 import { useFormat } from '../i18n/format.js';
 import { useTranslation } from 'react-i18next';
-import { X, Sparkles, Minimize2, Settings } from 'lucide-react';
+import { Sparkles, Minimize2, Settings } from 'lucide-react';
 import { jevErrorMessage } from '../ai/messages.js';
 
-const secondaryBtn = 'px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 enabled:hover:bg-gray-200 dark:enabled:hover:bg-gray-600 transition-colors disabled:opacity-40';
-const primaryBtn = 'px-3 py-2 rounded-lg bg-indigo-600 text-white enabled:hover:bg-indigo-700 transition-colors disabled:opacity-40';
+const secondaryBtn = BUTTON.secondary;
+const primaryBtn = BUTTON.primary;
 
 const ModalShell = ({ title, onClose, children, footer, minimize = false }) => {
   const { t } = useTranslation();
-  const titleId = useId();
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 sm:p-4">
-    <DialogPanel onClose={onClose} labelledBy={titleId} fallbackFocus={() => document.querySelector('[data-evaluation-expand]')} className="w-full max-w-xl max-h-[90dvh] overflow-y-auto bg-white dark:bg-gray-800 rounded-2xl shadow-xl text-gray-800 dark:text-gray-200">
-      <header className="flex items-center justify-between gap-3 p-4 border-b border-gray-200 dark:border-gray-700">
-        <h2 id={titleId} className="font-semibold flex items-center gap-2"><Sparkles size={20} />{title}</h2>
-        <button type="button" onClick={onClose} aria-label={t(minimize ? 'assist.minimize' : 'assist.close')} title={t(minimize ? 'assist.minimize' : 'assist.close')} className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><X size={20} /></button>
-      </header>
-      <div className="p-4 space-y-4 text-sm">{children}</div>
-      <footer className="p-4 flex flex-wrap justify-end gap-2">{footer}</footer>
-    </DialogPanel>
-  </div>;
+  return (
+    <Modal
+      size="md"
+      title={title}
+      icon={Sparkles}
+      onClose={onClose}
+      closeLabel={t(minimize ? 'assist.minimize' : 'assist.close')}
+      fallbackFocus={() => document.querySelector('[data-evaluation-expand]')}
+      bodyClassName="space-y-4 text-sm text-gray-800 dark:text-gray-200"
+      footer={footer}
+    >
+      {children}
+    </Modal>
+  );
 };
 
 export function ApplicationRulesSummary({ rule, onEditRules }) {
@@ -34,7 +37,7 @@ export function ApplicationRulesSummary({ rule, onEditRules }) {
       <li>{t('assist.summaryExclude', { value: percent(rule.excludeAt) })}</li>
     </ul> : <p>{t('assist.summaryApply', { value: percent(rule.applyAt) })}</p>}
     <p className="text-xs text-gray-600 dark:text-gray-300">{t('assist.rulesExplain')}</p>
-    {onEditRules && <button type="button" onClick={onEditRules} className={`${secondaryBtn} inline-flex items-center gap-2`}><Settings size={16} />{t('assist.editRules')}</button>}
+    {onEditRules && <button type="button" onClick={onEditRules} className={secondaryBtn}><Settings size={16} aria-hidden="true" />{t('assist.editRules')}</button>}
   </section>;
 }
 
@@ -70,7 +73,7 @@ export function JevBatchModal({ job, controller, rule, onEditRules }) {
     </aside>
   </>;
   return <ModalShell title={title} onClose={active ? controller.minimize : controller.dismiss} minimize={active} footer={<>
-    {active && <button onClick={controller.minimize} className={secondaryBtn}><Minimize2 size={16} className="inline mr-1" />{t('assist.minimize')}</button>}
+    {active && <button onClick={controller.minimize} className={secondaryBtn}><Minimize2 size={16} aria-hidden="true" />{t('assist.minimize')}</button>}
     {job.phase === 'ready' && <button onClick={controller.start} className={primaryBtn} disabled={!job.total}>{t('assist.batchStart')}</button>}
     {active && <button onClick={controller.stop} className={secondaryBtn}>{t(job.phase === 'ready' ? 'assist.cancel' : 'assist.batchStop')}</button>}
     {done && job.errors.length > 0 && <button onClick={controller.retryErrors} className={secondaryBtn}>{t('assist.retryErrors')}</button>}
