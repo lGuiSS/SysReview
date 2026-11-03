@@ -25,10 +25,10 @@ export const InlineConfirm = ({ message, confirmLabel, cancelLabel, tone = 'dang
       role="alertdialog"
       aria-label={message}
       onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); onCancel(); } }}
-      className="mt-3 grid gap-2 p-3 rounded-lg border border-yellow-300 dark:border-yellow-700/60 bg-yellow-50 dark:bg-yellow-900/30"
+      className="mt-3 grid gap-2 p-3 rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/30"
     >
       <p className="flex items-start gap-2 text-sm text-gray-800 dark:text-gray-100">
-        <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0 text-yellow-600 dark:text-yellow-400" aria-hidden="true" />
+        <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
         <span>{message}</span>
       </p>
       <div className="flex justify-end gap-2">
@@ -60,8 +60,8 @@ export const ConfirmDialog = ({ request, onClose }) => {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-9 h-9 rounded-full bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" aria-hidden="true" />
+          <div className="w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
           </div>
           <h2 id="confirm-dialog-title" className="text-base font-semibold text-gray-900 dark:text-white">
             {title || t('modals.confirm.title')}

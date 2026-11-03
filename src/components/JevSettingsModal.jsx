@@ -5,7 +5,7 @@ import { DialogPanel } from "./Dialog.jsx";
 import { OpenAiIcon, TypesafeIcon } from "./AiProviderIcons.jsx";
 import { useFormat } from "../i18n/format.js";
 import { useTranslation } from 'react-i18next';
-import { X, ListChecks, Link } from "lucide-react";
+import { X, Sparkles, Link } from "lucide-react";
 import { evaluate, DEFAULT_MODEL, DEFAULT_CONCURRENCY, PRICE_PER_MTOK_USD } from "../ai/jevClient.js";
 import { getAiConfig } from "../ai/screening.js";
 import { jevErrorMessage } from "../ai/messages.js";
@@ -222,7 +222,7 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onCl
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2 sm:gap-3">
-            <ListChecks className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            <Sparkles className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
             <h2 id="jev-settings-title" className="text-base font-semibold text-gray-900 dark:text-white">
               {t(rulesOnly ? 'assist.editRules' : 'assist.settingsTitle')}
             </h2>

@@ -4,7 +4,7 @@ import { mergeEvaluationEntries, applyAiSuggestions } from './ai/evaluationState
 import { requiresReevaluation } from './ai/modelCapabilities.js';
 import { duplicateDoiKey, duplicateTitleKey } from './duplicates.js';
 import { initialArticleState, articleReducer, nextProcessingRevision, canRestoreScoreZero, eligibleForScoreZero } from './scoreZeroHistory.js';
-import { Search, Filter, ChartArea, Download, Table, Upload, CheckCircle, Check, XCircle, BookCopy, List, Clock, BarChart3, FileText, Database, RefreshCw, Settings, Sun, Moon, Bell, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Eye, PlusCircle, X, CopyX, CopyCheck, HeartHandshake, Languages, Save, ListChecks, Info, GraduationCap, Undo2 } from 'lucide-react';
+import { Search, Filter, ChartArea, Download, Table, Upload, CheckCircle, Check, XCircle, BookCopy, List, Clock, BarChart3, FileText, Database, RefreshCw, Settings, Sun, Moon, Bell, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Eye, PlusCircle, X, CopyX, CopyCheck, HeartHandshake, Languages, Save, Sparkles, Info, GraduationCap, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SvgIcon } from './icons/SysReviewIcon.jsx';
 
@@ -63,7 +63,7 @@ const useTheme = () => {
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111827' : '#eff6ff');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111827' : '#eef2ff');
     localStorage.setItem('theme', theme);
   }, [theme]);
 
@@ -87,7 +87,7 @@ const ThemeToggle = ({ theme, toggleTheme }) => {
       {theme === 'light' ? (
         <Moon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
       ) : (
-        <Sun className="h-5 w-5 text-yellow-500" />
+        <Sun className="h-5 w-5 text-amber-500" />
       )}
     </button>
   );
@@ -636,8 +636,8 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
           {/* Search Input */}
           <div
             className={`border-2 rounded-lg p-3 cursor-text transition mb-4 ${isOpenDrop
-              ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-900'
-              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 dark:focus-within:ring-blue-900'
+              ? 'border-indigo-500 ring-2 ring-indigo-200 dark:ring-indigo-900'
+              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-200 dark:focus-within:ring-indigo-900'
               } bg-white dark:bg-gray-700`}
             onClick={() => { setIsOpenDrop(true); inputRef.current?.focus(); }}
           >
@@ -714,12 +714,12 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
                           <div
                             onClick={() => toggleOption(option)}
                             className={`px-4 py-3 cursor-pointer flex items-center justify-between transition-colors touch-manipulation ${isSelected
-                              ? 'bg-blue-50 dark:bg-blue-900/20'
+                              ? 'bg-indigo-50 dark:bg-indigo-900/20'
                               : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                               }`}
                           >
                             <span className="text-sm font-medium text-gray-900 dark:text-white">{option.id} - {option.label}</span>
-                            {isSelected && <Check size={16} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />}
+                            {isSelected && <Check size={16} className="text-indigo-600 dark:text-indigo-400 flex-shrink-0" />}
                           </div>
                         </div>
                       );
@@ -760,21 +760,29 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
   }
 
   // ── Extração ─────────────────────────────────────────────────────────────
+  // Laranja só identifica o critério (EXn); ações e seleção seguem o índigo do app
+  const visibleExtraction = criteria.map((criterion, index) => ({ criterion, index })).filter(({ criterion }) => criterion.value !== '');
+  const isAnswered = (index) => {
+    const response = resultsExtraction[index]?.response;
+    return Array.isArray(response) ? response.length > 0 : !!String(response ?? '').trim();
+  };
+  const answeredCount = visibleExtraction.filter(({ index }) => isAnswered(index)).length;
+  const optionTile = 'flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer transition-colors touch-manipulation hover:bg-gray-50 dark:hover:bg-gray-700/50 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 dark:has-[:checked]:border-indigo-400 dark:has-[:checked]:bg-indigo-900/30 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500';
   return (
     <Overlay
       onClose={onClose}
       labelledBy="multiselect-extraction-title"
       footer={
-        <div className="flex-shrink-0 flex items-center justify-end gap-3 px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <div className="flex-shrink-0 flex items-center justify-end gap-3 px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl sm:rounded-b-xl">
           <button
             onClick={onClose}
-            className="flex-1 sm:flex-none px-5 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+            className="flex-1 sm:flex-none px-5 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
           >
             {t('searchString.cancel')}
           </button>
           <button
             onClick={() => onSelect(resultsExtraction, 'extracted')}
-            className="flex-1 sm:flex-none px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-sm"
+            className="flex-1 sm:flex-none px-5 py-2 text-sm font-medium rounded-lg border-none bg-indigo-600 hover:bg-indigo-700 text-white transition-colors touch-manipulation"
           >
             {t('multiSelect.confirm')}
           </button>
@@ -782,11 +790,16 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
       }
     >
       {/* Header */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <div className="absolute left-1/2 -translate-x-1/2 top-2 w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full sm:hidden" />
-        <h3 id="multiselect-extraction-title" className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white mt-2 sm:mt-0">
-          {t('protocol.extractionCriteria')}
-        </h3>
+        <div className="min-w-0 mt-2 sm:mt-0">
+          <h3 id="multiselect-extraction-title" className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white">
+            {t('protocol.extractionCriteria')}
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 tabular-nums">
+            {t('multiSelect.answered', { count: answeredCount, total: visibleExtraction.length })}
+          </p>
+        </div>
         <button
           onClick={onClose}
           aria-label={t('modals.close')}
@@ -798,81 +811,77 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4">
-        <div className="space-y-4">
-          {criteria.map((criterion, index) =>
-            criterion.value !== '' && (
-              <div
-                key={index}
-                className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+        <div className="space-y-3">
+          {visibleExtraction.map(({ criterion, index }) => (
+            <div
+              key={index}
+              className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl"
+            >
+              <label
+                id={`extraction-label-${index}`}
+                htmlFor={criterion.type === 'text' ? `extraction-input-${index}` : undefined}
+                className="flex items-start gap-2.5 mb-3 text-sm font-medium text-gray-800 dark:text-gray-100"
               >
-                <label
-                  id={`extraction-label-${index}`}
-                  htmlFor={criterion.type === 'text' ? `extraction-input-${index}` : undefined}
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3"
-                >
-                  {criterion.id} - {criterion.value}
-                </label>
+                <span className="shrink-0 px-1.5 py-0.5 rounded-md text-xs font-semibold tabular-nums bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300">
+                  {criterion.id}
+                </span>
+                <span className="flex-1 min-w-0 break-words pt-px">{criterion.value}</span>
+                {isAnswered(index) && <Check size={16} className="shrink-0 mt-0.5 text-green-600 dark:text-green-400" aria-hidden="true" />}
+              </label>
 
-                {criterion.type === 'text' && (
-                  <textarea
-                    id={`extraction-input-${index}`}
-                    rows={3}
-                    onChange={(e) => handleCriteriaChange(index, e.target.value)}
-                    value={resultsExtraction[index]?.response || ''}
-                    placeholder={t('multiSelect.answerPlaceholder')}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg
-                               focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:border-transparent
-                               bg-white dark:bg-gray-700 text-gray-900 dark:text-white
-                               transition-colors duration-200 resize-none"
-                  />
-                )}
+              {criterion.type === 'text' && (
+                <textarea
+                  id={`extraction-input-${index}`}
+                  rows={2}
+                  onChange={(e) => handleCriteriaChange(index, e.target.value)}
+                  value={resultsExtraction[index]?.response || ''}
+                  placeholder={t('multiSelect.answerPlaceholder')}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg
+                             focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-transparent
+                             bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500
+                             transition-colors duration-200 resize-y"
+                />
+              )}
 
-                {criterion.type === 'Pick on List' && (
-                  <div role="radiogroup" aria-labelledby={`extraction-label-${index}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {criterion.items?.map((item, itemIndex) => (
-                      <label
-                        key={itemIndex}
-                        className="flex items-center gap-2 p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors touch-manipulation"
-                      >
+              {criterion.type === 'Pick on List' && (
+                <div role="radiogroup" aria-labelledby={`extraction-label-${index}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {criterion.items?.map((item, itemIndex) => (
+                    <label key={itemIndex} className={optionTile}>
+                      <input
+                        type="radio"
+                        name={`criterion-${index}`}
+                        onChange={() => handleCriteriaChange(index, item)}
+                        checked={resultsExtraction[index]?.response === item}
+                        value={item}
+                        className="w-4 h-4 accent-indigo-600 flex-shrink-0 focus:outline-none"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-200">{item}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {criterion.type === 'Pick on Many' && (
+                <div role="group" aria-labelledby={`extraction-label-${index}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {criterion.items?.map((item, itemIndex) => {
+                    const isChecked = Array.isArray(resultsExtraction[index]?.response)
+                      && resultsExtraction[index].response.includes(item);
+                    return (
+                      <label key={itemIndex} className={optionTile}>
                         <input
-                          type="radio"
-                          name={`criterion-${index}`}
-                          onChange={() => handleCriteriaChange(index, item)}
-                          checked={resultsExtraction[index]?.response === item}
-                          value={item}
-                          className="w-4 h-4 text-orange-500 border-gray-300 dark:border-gray-600 flex-shrink-0"
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => { e.stopPropagation(); handleCriteriaChange(index, item, true); }}
+                          className="w-4 h-4 accent-indigo-600 rounded flex-shrink-0 focus:outline-none"
                         />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{item}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-200">{item}</span>
                       </label>
-                    ))}
-                  </div>
-                )}
-
-                {criterion.type === 'Pick on Many' && (
-                  <div role="group" aria-labelledby={`extraction-label-${index}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {criterion.items?.map((item, itemIndex) => {
-                      const isChecked = Array.isArray(resultsExtraction[index]?.response)
-                        && resultsExtraction[index].response.includes(item);
-                      return (
-                        <label
-                          key={itemIndex}
-                          className="flex items-center gap-2 p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors touch-manipulation"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => { e.stopPropagation(); handleCriteriaChange(index, item, true); }}
-                            className="w-4 h-4 text-orange-500 border-gray-300 dark:border-gray-600 rounded flex-shrink-0"
-                          />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">{item}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </Overlay>
@@ -1071,8 +1080,8 @@ const ExtractionCriteriaList = ({ criteria, onChange, onTypeChange, onAdd, onRem
 
 // Contagens de uma etapa; a barra mostra a parte da base em cada situação
 const STAT_TONES = {
-  blue: { dot: 'bg-blue-500', bar: 'bg-blue-500' },
-  gray: { dot: 'bg-gray-400 dark:bg-gray-500', bar: 'bg-gray-300 dark:bg-gray-600' },
+  neutral: { dot: 'bg-gray-700 dark:bg-gray-300', bar: 'bg-gray-400' },
+  amber: { dot: 'bg-amber-500', bar: 'bg-amber-400 dark:bg-amber-500' },
   green: { dot: 'bg-green-500', bar: 'bg-green-500' },
   red: { dot: 'bg-red-500', bar: 'bg-red-500' },
   slate: { dot: 'bg-slate-600 dark:bg-slate-400', bar: 'bg-slate-600 dark:bg-slate-400' },
@@ -1282,7 +1291,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200">
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
-        <Settings className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+        <Settings className="h-6 w-6 text-gray-500 dark:text-gray-400" />
         {t('protocol.sectionTitle')}
       </h2>
 
@@ -2009,13 +2018,13 @@ const ImportSection = ({ articles, setArticles, onImport, isLoading, importedDat
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200">
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
-        <Upload className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+        <Upload className="h-6 w-6 text-gray-500 dark:text-gray-400" />
         {t('import.sectionTitle')}
       </h2>
 
       {protocol.databases.length === 0 && (
-        <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg transition-colors duration-200" data-tour="import-sources">
-          <p className="text-yellow-800 dark:text-yellow-300">
+        <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg transition-colors duration-200" data-tour="import-sources">
+          <p className="text-amber-800 dark:text-amber-300">
             {t('import.warning')}
           </p>
         </div>
@@ -2240,12 +2249,12 @@ const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateS
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200" data-tour="section-dataprocessing">
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
-        <Database className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+        <Database className="h-6 w-6 text-gray-500 dark:text-gray-400" />
         {t('dataprocessing.sectionTitle')}
       </h2>
 
       <StatSummary
-        base={{ label: t('dataprocessing.imported'), value: articles.length, tone: 'blue' }}
+        base={{ label: t('dataprocessing.imported'), value: articles.length, tone: 'neutral' }}
         parts={[
           { label: t('dataprocessing.duplicates'), value: statistics.dataProcessing.duplicate, tone: 'slate' },
           { label: t('dataprocessing.approved'), value: statistics.dataProcessing.included, tone: 'green' },
@@ -2375,14 +2384,14 @@ const Filter1Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200" data-tour="section-filter1">
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
-        <Filter className="h-6 w-6 text-green-600 dark:text-green-400" />
+        <Filter className="h-6 w-6 text-gray-500 dark:text-gray-400" />
         {t('filter.section1Title')}
       </h2>
 
       <StatSummary
-        base={{ label: t('filter.fromProcessing'), value: filter1Articles.length, tone: 'blue' }}
+        base={{ label: t('filter.fromProcessing'), value: filter1Articles.length, tone: 'neutral' }}
         parts={[
-          { label: t('filter.pending'), value: statistics.filter1.pending, tone: 'gray' },
+          { label: t('filter.pending'), value: statistics.filter1.pending, tone: 'amber' },
           { label: t('filter.included'), value: statistics.filter1.included, tone: 'green' },
           { label: t('filter.excluded'), value: statistics.filter1.excluded, tone: 'red' },
         ]}
@@ -2404,14 +2413,14 @@ const Filter2Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200" data-tour="section-filter2">
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
-        <Filter className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+        <Filter className="h-6 w-6 text-gray-500 dark:text-gray-400" />
         {t('filter.section2Title')}
       </h2>
 
       <StatSummary
-        base={{ label: t('filter.fromFilter1'), value: filter2Articles.length, tone: 'blue' }}
+        base={{ label: t('filter.fromFilter1'), value: filter2Articles.length, tone: 'neutral' }}
         parts={[
-          { label: t('filter.pending'), value: statistics.filter2.pending, tone: 'gray' },
+          { label: t('filter.pending'), value: statistics.filter2.pending, tone: 'amber' },
           { label: t('filter.included'), value: statistics.filter2.included, tone: 'green' },
           { label: t('filter.excluded'), value: statistics.filter2.excluded, tone: 'red' },
         ]}
@@ -2433,14 +2442,14 @@ const Filter3Section = ({ articles, onUpdateStatus, inclusionCriteria, exclusion
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200" data-tour="section-filter3">
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
-        <Filter className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+        <Filter className="h-6 w-6 text-gray-500 dark:text-gray-400" />
         {t('filter.section3Title')}
       </h2>
 
       <StatSummary
-        base={{ label: t('filter.fromFilter2'), value: filter3Articles.length, tone: 'blue' }}
+        base={{ label: t('filter.fromFilter2'), value: filter3Articles.length, tone: 'neutral' }}
         parts={[
-          { label: t('filter.pending'), value: statistics.filter3.pending, tone: 'gray' },
+          { label: t('filter.pending'), value: statistics.filter3.pending, tone: 'amber' },
           { label: t('filter.included'), value: statistics.filter3.included, tone: 'green' },
           { label: t('filter.excluded'), value: statistics.filter3.excluded, tone: 'red' },
         ]}
@@ -2932,7 +2941,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                   className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 whitespace-nowrap"
                   title={t('assist.evaluatePendingTitle')}
                 >
-                  <ListChecks className="h-4 w-4" />
+                  <Sparkles className="h-4 w-4" />
                   {t('assist.evaluatePending')}
                 </button>
               )}
@@ -3082,9 +3091,9 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                     {article.year}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 ">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${quadrants(8, article.score || 0) ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300' :
-                      quadrants(5, article.score || 0) ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300' :
-                        quadrants(2, article.score || 0) ? 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300' :
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${quadrants(8, article.score || 0) ? 'bg-indigo-600 dark:bg-indigo-500 text-white' :
+                      quadrants(5, article.score || 0) ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-200' :
+                        quadrants(2, article.score || 0) ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' :
                           'bg-gray-100 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400'
                       }`}>
                       {article.score === null ? '-' : article.score}
@@ -3102,7 +3111,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${status === 'included' ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300' :
                       status === 'excluded' ? 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300' :
                         status === 'duplicate' ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200' :
-                          'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300'
+                          'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300'
                       }`}>
                       {status === 'included' ? t('articles.statusIncluded') :
                         status === 'excluded' ? t('articles.statusExcluded') :
@@ -3313,7 +3322,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, protocol, assis
                 className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150 flex items-center"
                 title={suggestionTooltip(t, currentSuggestion(contextMenu.article), false)}
               >
-                <ListChecks className="h-4 w-4 text-indigo-600 dark:text-indigo-400 mr-2" />
+                <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400 mr-2" />
                 <span>{t('assist.accept')}</span>
               </button>
               <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
@@ -4522,6 +4531,8 @@ const SystematicReviewTool = () => {
     setArticles(updatedArticles);
   }, [articles, setArticles]);
 
+  // Itens do cabeçalho: usados como {Item()} e não <Item />. Como componentes criados
+  // aqui dentro, o React recriaria os botões a cada render e o clique às vezes se perdia
   const ConfigureNotification = () => (
     <button aria-label={t('header.notification')} onClick={() => setShowReminderSettings(true)} data-tour="reminder"
       className="p-2 rounded-lg transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center"
@@ -4536,7 +4547,7 @@ const SystematicReviewTool = () => {
       className="p-2 rounded-lg transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center"
       title={t('assist.headerButton')}
     >
-      <ListChecks className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+      <Sparkles className="h-5 w-5 text-gray-600 dark:text-gray-300" />
     </button>
   );
 
@@ -4703,7 +4714,7 @@ const SystematicReviewTool = () => {
   const extraSections = [sections[6], sections[7]];
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 m-0 p-0 transition-colors duration-200">
+    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 m-0 p-0 transition-colors duration-200">
       <a href="#conteudo"
         onClick={(e) => {
           // O main só fica focável durante o salto; focável o tempo todo, um clique nele desenha o contorno
@@ -4736,16 +4747,16 @@ const SystematicReviewTool = () => {
                   SysReview
                 </h1>
               </div>
-              <StatusIndicator />
+              {StatusIndicator()}
             </div>
 
             <div className="grid min-[520px]:flex min-[520px]:flex-wrap w-full min-[520px]:w-auto max-w-full grid-cols-6 items-center gap-2">
-              <FileMenu />
-              <ConfigureNotification />
-              <AssistSettings />
-              <GuideButton />
+              {FileMenu()}
+              {ConfigureNotification()}
+              {AssistSettings()}
+              {GuideButton()}
               <LanguageSelector />
-              <Support />
+              {Support()}
               <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Info, ListChecks, ShieldCheck, Workflow, User, Link } from "lucide-react";
+import { Info, Sparkles, ShieldCheck, Workflow, User, Link } from "lucide-react";
 import { APP_VERSION } from "../fileSystem.js";
 import authorPhoto from "../assets/author.jpg";
 
@@ -39,7 +39,7 @@ const AboutSection = () => {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 transition-colors duration-200">
       <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-white mb-2 flex items-center gap-2">
-        <Info className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+        <Info className="h-6 w-6 text-gray-500 dark:text-gray-400" />
         {t('about.sectionTitle')}
       </h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
@@ -60,7 +60,7 @@ const AboutSection = () => {
           <List items={asList('about.privacy')} />
         </Card>
 
-        <Card icon={ListChecks} title={t('about.assistTitle')}>
+        <Card icon={Sparkles} title={t('about.assistTitle')}>
           <p>{t('about.assistText')}</p>
           <List items={asList('about.assistStages')} />
           <p>{t('about.assistDecision')}</p>

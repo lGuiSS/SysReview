@@ -10,7 +10,7 @@ const DECISION_STYLE = {
   included: { Icon: Check, cls: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300', key: 'assist.suggestInclude' },
   excluded: { Icon: X, cls: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300', key: 'assist.suggestExclude' },
   uncertain: { Icon: HelpCircle, cls: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300', key: 'assist.suggestUncertain' },
-  'needs-text': { Icon: FileText, cls: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300', key: 'assist.needsText' },
+  'needs-text': { Icon: FileText, cls: 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300', key: 'assist.needsText' },
 };
 
 const percent = (v) => Math.round((v ?? 0) * 100);
@@ -86,7 +86,7 @@ export const SuggestionPanel = ({ suggestion, stale, criteria, evaluating, error
                 ` · p ${percent(suggestionProbability(suggestion))}%`}
             </span>
           )}
-          {stale && <span className="text-xs text-yellow-700 dark:text-yellow-400">{t('assist.stale')}</span>}
+          {stale && <span className="text-xs text-amber-700 dark:text-amber-400">{t('assist.stale')}</span>}
         </div>
         <ChevronDown size={16} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>

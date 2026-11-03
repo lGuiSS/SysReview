@@ -1034,10 +1034,10 @@ const ChartExport = ({ id, isOpen, onToggle, chartRef, data, svgOnly = false }) 
         {isOpen ? <X size={12} color="white" /> : <Download size={12} color="white" />}
       </button>
       {isOpen && (
-        <div className="absolute top-8 right-0 bg-zinc-800 rounded-lg p-1.5 min-w-[190px] z-50 shadow-xl">
-          {!svgOnly && <button onClick={handlePNG} className="w-full text-left px-4 py-2 text-sm text-white bg-transparent hover:bg-zinc-700 rounded cursor-pointer border-none">{t('stats.exportPNG')}</button>}
-          <button onClick={handleSVG} className="w-full text-left px-4 py-2 text-sm text-white bg-transparent hover:bg-zinc-700 rounded cursor-pointer border-none">{t('stats.exportSVG')}</button>
-          {!svgOnly && <button onClick={handleXLSX} className="w-full text-left px-4 py-2 text-sm text-white bg-transparent hover:bg-zinc-700 rounded cursor-pointer border-none">{t('stats.exportXLSX')}</button>}
+        <div className="absolute top-8 right-0 bg-gray-800 rounded-lg p-1.5 min-w-[190px] z-50 shadow-xl">
+          {!svgOnly && <button onClick={handlePNG} className="w-full text-left px-4 py-2 text-sm text-white bg-transparent hover:bg-gray-700 rounded cursor-pointer border-none">{t('stats.exportPNG')}</button>}
+          <button onClick={handleSVG} className="w-full text-left px-4 py-2 text-sm text-white bg-transparent hover:bg-gray-700 rounded cursor-pointer border-none">{t('stats.exportSVG')}</button>
+          {!svgOnly && <button onClick={handleXLSX} className="w-full text-left px-4 py-2 text-sm text-white bg-transparent hover:bg-gray-700 rounded cursor-pointer border-none">{t('stats.exportXLSX')}</button>}
         </div>
       )}
       <ExportConfigModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onExport={handleExport} format={modalFormat} svgElement={getSvgEl()} getSvg={getExportSvg} svgOnly={svgOnly} />
@@ -1065,7 +1065,7 @@ const SourcePicker = ({ slotId, currentSource, sources, usedSources, isOpen, onT
         <span className="text-[11px] text-white font-semibold leading-none">{displaySource(currentSource)}</span>
       </button>
       {isOpen && (
-        <div className="absolute top-8 right-0 bg-zinc-800 rounded-lg p-1.5 min-w-[170px] z-50 shadow-xl">
+        <div className="absolute top-8 right-0 bg-gray-800 rounded-lg p-1.5 min-w-[170px] z-50 shadow-xl">
           {sources.map(src => {
             const isActive = src === currentSource;
             const isOccupied = !isActive && usedSources.has(src);
@@ -1075,9 +1075,9 @@ const SourcePicker = ({ slotId, currentSource, sources, usedSources, isOpen, onT
                 disabled={isOccupied}
                 onClick={() => { if (!isOccupied) { onChange(src); onToggle(pickerId); } }}
                 className={`w-full text-left px-4 py-2 text-sm rounded border-none
-                  ${isActive ? 'text-indigo-400 bg-zinc-700 font-semibold cursor-default' : ''}
-                  ${isOccupied ? 'text-zinc-500 bg-transparent cursor-not-allowed' : ''}
-                  ${!isActive && !isOccupied ? 'text-white bg-transparent hover:bg-zinc-700 cursor-pointer' : ''}`}
+                  ${isActive ? 'text-indigo-400 bg-gray-700 font-semibold cursor-default' : ''}
+                  ${isOccupied ? 'text-gray-500 bg-transparent cursor-not-allowed' : ''}
+                  ${!isActive && !isOccupied ? 'text-white bg-transparent hover:bg-gray-700 cursor-pointer' : ''}`}
               >
                 {displaySource(src)}
                 {isActive && <span className="ml-1 text-xs">✓</span>}
@@ -1782,7 +1782,7 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 mb-6 transition-colors duration-200">
       <div data-tour="section-statistics">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
-          <ChartArea className="h-6 w-6 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+          <ChartArea className="h-6 w-6 text-gray-500 dark:text-gray-400 flex-shrink-0" />
           {t('stats.sectionTitle')}
         </h2>
 
@@ -2621,16 +2621,16 @@ const NetworkTab = ({ articles, theme }) => {
                 {exportMenuOpen ? <X size={12} color="white" /> : <Download size={12} color="white" />}
               </button>
               {exportMenuOpen && (
-                <div className="absolute top-8 right-0 bg-zinc-800 rounded-lg p-1.5 min-w-[150px] z-50 shadow-xl">
+                <div className="absolute top-8 right-0 bg-gray-800 rounded-lg p-1.5 min-w-[150px] z-50 shadow-xl">
                   <button
                     onClick={() => { setNetworkModalOpen(true); setExportMenuOpen(false); }}
-                    className="w-full text-left px-4 py-2 text-sm text-white bg-transparent hover:bg-zinc-700 rounded cursor-pointer border-none"
+                    className="w-full text-left px-4 py-2 text-sm text-white bg-transparent hover:bg-gray-700 rounded cursor-pointer border-none"
                   >
                     {t('stats.exportPNGLabel')}
                   </button>
                   <button
                     onClick={() => { handleExportXLSX(); setExportMenuOpen(false); }}
-                    className="w-full text-left px-4 py-2 text-sm text-white bg-transparent hover:bg-zinc-700 rounded cursor-pointer border-none"
+                    className="w-full text-left px-4 py-2 text-sm text-white bg-transparent hover:bg-gray-700 rounded cursor-pointer border-none"
                   >
                     {t('stats.exportXLSXLabel')}
                   </button>

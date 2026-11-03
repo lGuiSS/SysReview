@@ -86,7 +86,7 @@ const ArticleModal = ({
   };
   const { label: statusLabel, cls: statusCls } = statusConfig[status] ?? {
     label: t('modals.article.statusPending'),
-    cls:   'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300',
+    cls:   'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300',
   };
 
   // ── Estilos da sheet ───────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ const ArticleModal = ({
               {article.doi?
                     <div
                       onClick={() => window.open(`https://doi.org/${article.doi}`, '_blank')}
-                      className="flex flex-row justify-start items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 hover:underline ml-1 cursor-pointer break-all"
+                      className="flex flex-row justify-start items-center gap-1 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline ml-1 cursor-pointer break-all"
                     >
                       <Link size={12}/>
                       {article.doi}
@@ -204,7 +204,7 @@ const ArticleModal = ({
             <strong className="text-base text-gray-700 dark:text-gray-300">{t('modals.article.keywords')}</strong>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {article.keywords.map((kw, i) => (
-                <span key={i} className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-sm rounded-full">
+                <span key={i} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-sm rounded-full">
                   {kw}
                 </span>
               ))}
@@ -247,13 +247,13 @@ const ArticleModal = ({
               {
                 label: t('articles.duplicateTitle'),
                 icon:  <BookCopy size={16} />,
-                cls:   'text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/40 hover:bg-orange-200 dark:hover:bg-orange-800/60',
+                cls:   'text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700/60 hover:bg-slate-200 dark:hover:bg-slate-700',
                 onClick: () => handleDuplicate(article),
               },
               ...(currentFilter === 'filter3' ? [{
                 label:    t('modals.article.extraction'),
                 icon:     <ListCollapse size={16} />,
-                cls:      'text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40 hover:bg-indigo-200 dark:hover:bg-indigo-800/60',
+                cls:      'text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/40 hover:bg-orange-200 dark:hover:bg-orange-800/60',
                 disabled: optionExtraction,
                 onClick:  () => setShowCriterionModal({ type: 'extraction', article: article }),
               }] : []),

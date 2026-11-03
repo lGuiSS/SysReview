@@ -303,6 +303,7 @@
     "projectLoadError": "Error loading: {{error}}"
   },
   "multiSelect": {
+    "answered": "{{count}} of {{total}} answered",
     "removeSelected": "Remove {{label}}",
     "selectCriteria": "Select Criteria",
     "searchAdd": "Search and add criteria…",
