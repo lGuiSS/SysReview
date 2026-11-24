@@ -82,7 +82,7 @@ export const DecisionUndoToast = ({ entry, onUndo, onDismiss }) => {
       onBlur={() => setPaused(false)}
       actions={available && (
         <button type="button" onClick={() => onUndo(entry.id)} title={t('decisionUndo.shortcut')}
-          className="shrink-0 inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border-none bg-transparent text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40">
+          className="shrink-0 inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border-none bg-transparent text-sm font-semibold text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/40">
           <Undo2 aria-hidden="true" className="h-4 w-4" />
           {t('decisionUndo.undo')}
         </button>

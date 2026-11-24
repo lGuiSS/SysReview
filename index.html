@@ -3,21 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="color-scheme" content="light dark">
-    <meta name="theme-color" content="#eef2ff">
+    <meta name="theme-color" content="#eceae4">
     <!-- Fundo do tema antes do CSS chegar: evita o primeiro quadro escuro/claro errado -->
     <style>
-      html.light { color-scheme: light; background: #eef2ff; }
-      html.dark { color-scheme: dark; background: #111827; }
+      html.light { color-scheme: light; background: #eceae4; }
+      html.dark { color-scheme: dark; background: #16171a; }
       /* Tela de abertura: camada sólida própria que cobre a primeira pintura do app
          (o Chrome chega a mostrar blocos ainda não pintados como retângulos de borda branca) */
       #boot-splash {
         position: fixed; inset: 0; z-index: 2147483647;
         display: grid; place-items: center;
-        background: #eef2ff; color: #4f46e5;
+        background: #eceae4; color: #26364a;
         font: 600 1.5rem system-ui, sans-serif;
         will-change: opacity; transition: opacity .2s ease;
       }
-      html.dark #boot-splash { background: #111827; color: #a5b4fc; }
+      html.dark #boot-splash { background: #16171a; color: #a9bfd8; }
       #boot-splash.is-hidden { opacity: 0; pointer-events: none; }
       @media (prefers-reduced-motion: reduce) { #boot-splash { transition: none; } }
     </style>
@@ -26,7 +26,7 @@
       try {
         var theme = localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         document.documentElement.classList.add(theme);
-        document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#111827' : '#eef2ff';
+        document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#16171a' : '#eceae4';
         var lang = localStorage.getItem('sysreview_lang');
         if (lang) document.documentElement.lang = lang;
       } catch (e) {}

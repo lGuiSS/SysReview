@@ -1,3 +1,9 @@
+import SpringCheck from './components/motion/SpringCheck.jsx';
+import { AnimatePresence, motion as Motion, useReducedMotion } from 'motion/react';
+import RubberSegmentGroup from './components/motion/RubberSegmentGroup.jsx';
+import RubberSegment from './components/motion/RubberSegment.jsx';
+import { TooltipButton } from './components/motion/WarmTooltip.jsx';
+import { MorphMenu } from './components/motion/MorphMenu.jsx';
 import React, { useRef, useState, useEffect, useMemo, useCallback, useReducer, useSyncExternalStore, useLayoutEffect } from 'react';
 import { createEvaluationController, applicableSuggestion, articleText, stageIsPending } from './ai/evaluationController.js';
 import { mergeEvaluationEntries, applyAiSuggestions } from './ai/evaluationState.js';
@@ -68,7 +74,7 @@ const useTheme = () => {
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111827' : '#eef2ff');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#16171a' : '#eceae4');
     localStorage.setItem('theme', theme);
   }, [theme]);
 
@@ -83,7 +89,7 @@ const useTheme = () => {
 const ThemeToggle = ({ theme, toggleTheme }) => {
   const { t } = useTranslation();
   return (
-    <button
+    <TooltipButton
       onClick={toggleTheme}
       data-tour="theme"
       className="p-2 rounded-lg flex items-center justify-center transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
@@ -94,21 +100,21 @@ const ThemeToggle = ({ theme, toggleTheme }) => {
       ) : (
         <Sun className="h-5 w-5 text-amber-500" />
       )}
-    </button>
+    </TooltipButton>
   );
 };
 
 const LanguageSelector = () => {
   const { i18n } = useTranslation();
   return (
-    <button aria-label={i18n.language === 'pt' ? 'English' : 'Português'}
+    <TooltipButton aria-label={i18n.language === 'pt' ? 'English' : 'Português'}
       data-tour="language"
       onClick={() => i18n.changeLanguage(i18n.language === 'pt' ? 'en' : 'pt')}
       className="px-2 py-2 rounded-lg flex items-center justify-center transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
       title={i18n.language === 'pt' ? 'English' : 'Português'}
     >
       <Languages className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-    </button>
+    </TooltipButton>
   );
 };
 
@@ -411,25 +417,12 @@ const importedPubmedArticles = (pubmedContent, source = 'PubMed', numString = 1,
 };
 
 const Overlay = ({ children, footer, onClose, labelledBy }) => {
-  const [visible, setVisible] = useState(false);
+  const reduced = useReducedMotion();
   const [translateY, setTranslateY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-
   const dragStartY = useRef(null);
   const dragActive = useRef(false);
-
-  // ── Entrada ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const t = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(t);
-  }, []);
-
-  // ── Fecha com animação de saída ──────────────────────────────────────────
-  const closeWithAnimation = useCallback(() => {
-    setVisible(false);
-    setTranslateY(window.innerHeight);
-    setTimeout(onClose, 300);
-  }, [onClose]);
+  const closeWithAnimation = onClose;
 
   // ── Drag-to-close — apenas no handle ────────────────────────────────────
   const onHandleTouchStart = (e) => {
@@ -461,33 +454,14 @@ const Overlay = ({ children, footer, onClose, labelledBy }) => {
     dragActive.current = false;
   };
 
-  // ── Estilos da sheet ─────────────────────────────────────────────────────
-  const sheetStyle = {
-    maxHeight: '92dvh',
-    transform: `translateY(${translateY}px)`,
-    transition: isDragging
-      ? 'none'
-      : visible
-        ? 'transform 0.35s cubic-bezier(0.32,0.72,0,1)'
-        : 'transform 0.28s ease-in',
-  };
-
   return (
-    <div
-      className={`${MODAL_BACKDROP} z-[60]`}
-      onClick={() => closeWithAnimation()}
-      style={{
-        opacity: visible ? 1 : 0,
-        transition: 'opacity 0.3s ease',
-      }}
-    >
-      <DialogPanel
-        onClose={closeWithAnimation}
-        labelledBy={labelledBy}
-        className={modalPanelClass('lg')}
-        style={sheetStyle}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Motion.div className={`${MODAL_BACKDROP} z-[60]`} onClick={closeWithAnimation}
+      initial={{ opacity: reduced ? 1 : 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: reduced ? 0 : 0.15 }}>
+      <DialogPanel onClose={closeWithAnimation} labelledBy={labelledBy}
+        className={modalPanelClass('lg')} onClick={e => e.stopPropagation()}
+        animate={{ opacity: 1, scale: 1, y: reduced ? 0 : translateY,
+          transition: { duration: isDragging || reduced ? 0 : 0.25, ease: [0.22, 1, 0.36, 1] } }}>
         {/* Handle — mobile only */}
         <div
           className="sm:hidden flex justify-center items-center pt-3 pb-1 px-4 select-none"
@@ -509,11 +483,13 @@ const Overlay = ({ children, footer, onClose, labelledBy }) => {
         {children}
         {footer}
       </DialogPanel>
-    </div>
+    </Motion.div>
   );
 };
 // Modal para seleção de critérios
-const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initialSelected = [], initialValues = [] }) => {
+const MultiSelect = props => <AnimatePresence>{props.isOpen && <MultiSelectContent {...props} />}</AnimatePresence>;
+
+const MultiSelectContent = ({ isOpen, onClose, options, onSelect, type, criteria, initialSelected = [], initialValues = [] }) => {
   const { t } = useTranslation();
   const [isOpenDrop, setIsOpenDrop] = useState(false);
   const [selected, setSelected] = useState([]);
@@ -621,8 +597,8 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
           {/* Search Input */}
           <div
             className={`border-2 rounded-lg p-3 cursor-text transition mb-4 ${isOpenDrop
-              ? 'border-indigo-500 ring-2 ring-indigo-200 dark:ring-indigo-900'
-              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-200 dark:focus-within:ring-indigo-900'
+              ? 'border-brand-500 ring-2 ring-brand-200 dark:ring-brand-900'
+              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-200 dark:focus-within:ring-brand-900'
               } bg-white dark:bg-gray-700`}
             onClick={() => { setIsOpenDrop(true); inputRef.current?.focus(); }}
           >
@@ -699,12 +675,12 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
                           <div
                             onClick={() => toggleOption(option)}
                             className={`px-4 py-3 cursor-pointer flex items-center justify-between transition-colors touch-manipulation ${isSelected
-                              ? 'bg-indigo-50 dark:bg-indigo-900/20'
+                              ? 'bg-brand-50 dark:bg-brand-900/20'
                               : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                               }`}
                           >
                             <span className="text-sm font-medium text-gray-900 dark:text-white">{option.id} - {option.label}</span>
-                            {isSelected && <Check size={16} className="text-indigo-600 dark:text-indigo-400 flex-shrink-0" />}
+                            {isSelected && <Check size={16} className="text-brand-600 dark:text-brand-400 flex-shrink-0" />}
                           </div>
                         </div>
                       );
@@ -752,7 +728,7 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
     return Array.isArray(response) ? response.length > 0 : !!String(response ?? '').trim();
   };
   const answeredCount = visibleExtraction.filter(({ index }) => isAnswered(index)).length;
-  const optionTile = 'flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer transition-colors touch-manipulation hover:bg-gray-50 dark:hover:bg-gray-700/50 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 dark:has-[:checked]:border-indigo-400 dark:has-[:checked]:bg-indigo-900/30 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500';
+  const optionTile = 'flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer transition-colors touch-manipulation hover:bg-gray-50 dark:hover:bg-gray-700/50 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 dark:has-[:checked]:border-brand-400 dark:has-[:checked]:bg-brand-900/30 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500';
   return (
     <Overlay
       onClose={onClose}
@@ -802,7 +778,7 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
                   value={resultsExtraction[index]?.response || ''}
                   placeholder={t('multiSelect.answerPlaceholder')}
                   className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg
-                             focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-transparent
+                             focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:border-transparent
                              bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500
                              transition-colors duration-200 resize-y"
                 />
@@ -818,7 +794,7 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
                         onChange={() => handleCriteriaChange(index, item)}
                         checked={resultsExtraction[index]?.response === item}
                         value={item}
-                        className="w-4 h-4 accent-indigo-600 flex-shrink-0 focus:outline-none"
+                        className="w-4 h-4 accent-brand-600 flex-shrink-0 focus:outline-none"
                       />
                       <span className="text-sm text-gray-700 dark:text-gray-200">{item}</span>
                     </label>
@@ -833,11 +809,10 @@ const MultiSelect = ({ isOpen, onClose, options, onSelect, type, criteria, initi
                       && resultsExtraction[index].response.includes(item);
                     return (
                       <label key={itemIndex} className={optionTile}>
-                        <input
-                          type="checkbox"
+                        <SpringCheck strike="none"
                           checked={isChecked}
                           onChange={(e) => { e.stopPropagation(); handleCriteriaChange(index, item, true); }}
-                          className="w-4 h-4 accent-indigo-600 rounded flex-shrink-0 focus:outline-none"
+                          className="spring-check--compact"
                         />
                         <span className="text-sm text-gray-700 dark:text-gray-200">{item}</span>
                       </label>
@@ -880,10 +855,10 @@ const CRITERIA_TONES = {
     add: 'text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20',
   },
   indigo: {
-    chip: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300',
-    count: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300',
-    ring: 'focus-visible:ring-indigo-500',
-    add: 'text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20',
+    chip: 'bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300',
+    count: 'bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300',
+    ring: 'focus-visible:ring-brand-500',
+    add: 'text-brand-700 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/20',
   },
 };
 
@@ -921,7 +896,7 @@ const CriteriaList = ({ type, prefix, title, placeholder, addLabel, tone, criter
                   placeholder={placeholder}
                 />
                 <span className="grid place-items-center px-2">
-                  <button
+                  <TooltipButton
                     type="button"
                     aria-label={`${removeLabel || t('protocol.removeCriterion')} ${code}`}
                     title={removeLabel || t('protocol.removeCriterion')}
@@ -930,7 +905,7 @@ const CriteriaList = ({ type, prefix, title, placeholder, addLabel, tone, criter
                     className={ROW_REMOVE_BTN}
                   >
                     <X size={16} aria-hidden="true" />
-                  </button>
+                  </TooltipButton>
                 </span>
               </li>
             );
@@ -1000,7 +975,7 @@ const ExtractionCriteriaList = ({ criteria, onChange, onTypeChange, onAdd, onRem
                 />
                 <span className="col-start-3 row-start-1 sm:col-start-4 flex items-center gap-1.5 px-2">
                   {/* Sem opções o botão só ocupa o lugar, para alinhar a coluna de remover */}
-                  <button
+                  <TooltipButton
                     type="button"
                     aria-label={`${t('protocol.editOptions')} ${code}`}
                     title={t('protocol.editOptions')}
@@ -1012,8 +987,8 @@ const ExtractionCriteriaList = ({ criteria, onChange, onTypeChange, onAdd, onRem
                     {pick && optionCount > 0 && (
                       <span aria-hidden="true" className="absolute -top-1.5 -right-1.5 min-w-[1.1rem] h-[1.1rem] px-1 grid place-items-center rounded-full bg-orange-600 text-white text-[10px] font-bold tabular-nums">{optionCount}</span>
                     )}
-                  </button>
-                  <button
+                  </TooltipButton>
+                  <TooltipButton
                     type="button"
                     aria-label={`${t('protocol.removeCriterion')} ${code}`}
                     title={t('protocol.removeCriterion')}
@@ -1022,7 +997,7 @@ const ExtractionCriteriaList = ({ criteria, onChange, onTypeChange, onAdd, onRem
                     className={ROW_REMOVE_BTN}
                   >
                     <X size={16} aria-hidden="true" />
-                  </button>
+                  </TooltipButton>
                 </span>
               </li>
             );
@@ -1271,7 +1246,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                 </label>
                 <input id="protocol-title"
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm "
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm "
                   value={protocol.title}
                   onChange={(e) => handleProtocolChange('title', e.target.value)}
                   placeholder={t('protocol.titlePlaceholder')}
@@ -1283,7 +1258,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                   {t('protocol.researchQuestion')}
                 </label>
                 <textarea id="protocol-question"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"
                   rows={3}
                   value={protocol.researchQuestion}
                   onChange={(e) => handleProtocolChange('researchQuestion', e.target.value)}
@@ -1330,23 +1305,14 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                 <div className="space-y-2">
                   {['English', 'Portuguese', 'Spanish', 'French', 'German', 'Italian'].map(lang => (
                     <label key={lang} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200">
-                      <div className="relative">
-                        <input
-                          type="checkbox"
-                          checked={protocol.languages.includes(lang)}
-                          onChange={(e) => {
+                      <SpringCheck strike="none" checked={protocol.languages.includes(lang)}
+                        onChange={(e) => {
                             if (e.target.checked) {
                               handleProtocolChange('languages', [...protocol.languages, lang]);
                             } else {
                               handleProtocolChange('languages', protocol.languages.filter(l => l !== lang));
                             }
-                          }}
-                          className="peer sr-only"
-                        />
-                        <div className="relative w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition duration-200">
-                        </div>
-                        <Check className="absolute inset-0 m-auto w-3 h-3 text-white hidden peer-checked:block" />
-                      </div>
+                          }} />
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{lang}</span>
                     </label>
                   ))}
@@ -1360,23 +1326,14 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                 <div className="space-y-2">
                   {['Scopus', 'Web of Science', 'PubMed', 'ScienceDirect'].map(db => (
                     <label key={db} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200">
-                      <div className="relative">
-                        <input
-                          type="checkbox"
-                          checked={protocol.databases.includes(db)}
-                          onChange={(e) => {
+                      <SpringCheck strike="none" checked={protocol.databases.includes(db)}
+                        onChange={(e) => {
                             if (e.target.checked) {
                               handleProtocolChange('databases', [...protocol.databases, db]);
                             } else {
                               handleProtocolChange('databases', protocol.databases.filter(d => d !== db));
                             }
-                          }}
-                          className="peer sr-only"
-                        />
-                        <div className="relative w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition duration-200">
-                        </div>
-                        <Check className="absolute inset-0 m-auto w-3 h-3 text-white hidden peer-checked:block" />
-                      </div>
+                          }} />
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{db}</span>
                     </label>
                   ))}
@@ -1438,7 +1395,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
       </div>
 
       {/* Modal de detalhes */}
-      {selectedExCriteria && (
+      <AnimatePresence>{selectedExCriteria && (
         // document.body.overflowX = ''
         <Modal
           size="lg"
@@ -1469,7 +1426,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                         className="w-full min-h-[2.75rem] px-3 py-2 border-none rounded-none bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500"
                       />
                       <span className="grid place-items-center px-2">
-                        <button
+                        <TooltipButton
                           type="button"
                           aria-label={`${t('protocol.removeOption')} ${index + 1}`}
                           title={t('protocol.removeOption')}
@@ -1478,7 +1435,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
                           className={ROW_REMOVE_BTN}
                         >
                           <X size={16} aria-hidden="true" />
-                        </button>
+                        </TooltipButton>
                       </span>
                     </li>
                   ))}
@@ -1496,7 +1453,7 @@ const ProtocolSection = ({ protocol, onUpdateProtocol }) => {
               </div>
             </div>
         </Modal>
-      )}
+      )}</AnimatePresence>
 
       {/* Sistema de Pontuação */}
 
@@ -1522,7 +1479,7 @@ const SearchStringModal = ({ isOpen, onClose, onConfirm, database }) => {
   const { t } = useTranslation();
   const [searchString, setSearchString] = useState('');
 
-  if (!isOpen) return null;
+
 
   const handleConfirm = () => {
     if (searchString.trim()) {
@@ -1533,6 +1490,7 @@ const SearchStringModal = ({ isOpen, onClose, onConfirm, database }) => {
 
   return (
     <Modal
+      open={isOpen}
       size="sm"
       title={t('searchString.title', { database })}
       onClose={onClose}
@@ -1549,7 +1507,7 @@ const SearchStringModal = ({ isOpen, onClose, onConfirm, database }) => {
         {t('searchString.input')}
       </label>
       <textarea id="search-string-input"
-        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200"
+        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-200"
         rows={4}
         value={searchString}
         onChange={(e) => setSearchString(e.target.value)}
@@ -1604,7 +1562,7 @@ const ScoringSystemConfig = ({ scoringSystem, onUpdate, protocol, addCriteria, r
   return (
     <section aria-labelledby="scoring-title" className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden transition-colors duration-200">
       <div className="flex items-start gap-3 px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
-        <span className="grid place-items-center h-9 w-9 shrink-0 rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+        <span className="grid place-items-center h-9 w-9 shrink-0 rounded-lg bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300">
           <BarChart3 className="h-5 w-5" aria-hidden="true" />
         </span>
         <div className="min-w-0">
@@ -1637,7 +1595,7 @@ const ScoringSystemConfig = ({ scoringSystem, onUpdate, protocol, addCriteria, r
                 <div key={field.key} className="px-4 py-3">
                   <div className="flex items-center justify-between gap-3 mb-2">
                     <label htmlFor={`weight-${field.key}`} className="text-sm font-medium text-gray-700 dark:text-gray-200">{field.label}</label>
-                    <span className="px-2 py-0.5 rounded-md text-xs font-semibold tabular-nums bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                    <span className="px-2 py-0.5 rounded-md text-xs font-semibold tabular-nums bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
                       {t('scoring.points', { count: scoringSystem.weights[field.key] })}
                     </span>
                   </div>
@@ -1647,7 +1605,7 @@ const ScoringSystemConfig = ({ scoringSystem, onUpdate, protocol, addCriteria, r
                     max="10"
                     value={scoringSystem.weights[field.key]}
                     onChange={(e) => handleWeightChange(field.key, e.target.value)}
-                    className="w-full h-2 cursor-pointer accent-indigo-600 dark:accent-indigo-400"
+                    className="w-full h-2 cursor-pointer accent-brand-600 dark:accent-brand-400"
                   />
                 </div>
               ))}
@@ -1671,7 +1629,7 @@ const ScoringSystemConfig = ({ scoringSystem, onUpdate, protocol, addCriteria, r
                       onChange={(e) => handleConfigChange(setting.key, e.target.checked)}
                       className="peer sr-only"
                     />
-                    <span aria-hidden="true" className="block w-10 h-6 rounded-full bg-gray-300 dark:bg-gray-600 peer-checked:bg-indigo-600 dark:peer-checked:bg-indigo-500 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-gray-800 transition-colors duration-200" />
+                    <span aria-hidden="true" className="block w-10 h-6 rounded-full bg-gray-300 dark:bg-gray-600 peer-checked:bg-brand-600 dark:peer-checked:bg-brand-500 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-gray-800 transition-colors duration-200" />
                     <span aria-hidden="true" className="absolute left-1 top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-4" />
                   </span>
                 </label>
@@ -1680,7 +1638,7 @@ const ScoringSystemConfig = ({ scoringSystem, onUpdate, protocol, addCriteria, r
           </div>
 
           <div className="flex gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-            <Info className="h-4 w-4 mt-0.5 shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+            <Info className="h-4 w-4 mt-0.5 shrink-0 text-brand-600 dark:text-brand-400" aria-hidden="true" />
             <div className="min-w-0">
               <p className="font-medium text-gray-800 dark:text-gray-100">{t('scoring.howItWorks')}</p>
               <ul className="mt-1 list-disc pl-4 space-y-0.5">
@@ -1749,11 +1707,11 @@ const DatabaseImportCard = ({ source, imports, duplicatesById, isLoading, onFile
           onDragOver={(e) => { e.preventDefault(); if (!isLoading) setIsDragOver(true); }}
           onDragLeave={() => setIsDragOver(false)}
           onDrop={handleDrop}
-          className={`grid justify-items-center gap-2 p-4 rounded-lg border-2 border-dashed text-center transition-colors duration-200 focus-within:ring-2 focus-within:ring-indigo-500 ${isLoading
+          className={`grid justify-items-center gap-2 p-4 rounded-lg border-2 border-dashed text-center transition-colors duration-200 focus-within:ring-2 focus-within:ring-brand-500 ${isLoading
             ? 'cursor-not-allowed opacity-60 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40'
             : isDragOver
-              ? 'cursor-copy border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
-              : 'cursor-pointer border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40 hover:border-indigo-400 dark:hover:border-indigo-500'
+              ? 'cursor-copy border-brand-500 bg-brand-50 dark:bg-brand-900/30'
+              : 'cursor-pointer border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40 hover:border-brand-400 dark:hover:border-brand-500'
             }`}
         >
           <Upload className={`h-6 w-6 ${source.iconColor}`} aria-hidden="true" />
@@ -2055,7 +2013,7 @@ const ImportSection = ({ articles, setArticles, onImport, isLoading, importedDat
                       {new Date(data.importDate).toLocaleDateString(intlLocale(i18n.language))}
                     </td>
                     <td className="px-1 py-4 text-sm font-medium text-gray-500 dark:text-gray-400">
-                      <button aria-label={t('import.delete')}
+                      <TooltipButton aria-label={t('import.delete')}
                         onClick={() => {
                           handleExcludeData(data)
                         }}
@@ -2063,7 +2021,7 @@ const ImportSection = ({ articles, setArticles, onImport, isLoading, importedDat
                         title={t('import.delete')}
                       >
                         <XCircle size={16} />
-                      </button>
+                      </TooltipButton>
 
                     </td>
                   </tr>
@@ -2109,7 +2067,7 @@ const ImportSection = ({ articles, setArticles, onImport, isLoading, importedDat
             <p className="text-sm text-gray-600 dark:text-gray-400">{t('import.otherBases')}</p>
           </div>
           <div className="text-center">
-            <p className="text-lg sm:text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+            <p className="text-lg sm:text-2xl font-bold text-brand-600 dark:text-brand-400">
               {importedData.reduce((acc, d) => acc + d.articles.length, 0)}
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-400">{t('import.total')}</p>
@@ -2223,7 +2181,7 @@ const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateS
                   onChange={(e) => setRemoveIncludes(e.target.checked)}
                   className="peer sr-only"
                 />
-                <div className="w-9 h-5 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-indigo-600 dark:peer-checked:bg-indigo-500 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 transition-colors duration-200" />
+                <div className="w-9 h-5 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-brand-600 dark:peer-checked:bg-brand-500 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500 transition-colors duration-200" />
                 <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform duration-200 peer-checked:translate-x-4" />
               </div>
               <span className="min-w-0">
@@ -2240,7 +2198,7 @@ const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateS
                 <CopyX className="h-4 w-4" />
                 {t('dataprocessing.scoreButton')}
               </button>
-              <button
+              <TooltipButton
                 type="button"
                 onClick={onUndoScoreZero}
                 disabled={!restoreCount}
@@ -2250,9 +2208,9 @@ const DataProcessingSection = ({ articles, currentFilter, setArticles, onUpdateS
                 <Undo2 className="h-4 w-4" />
                 {t('dataprocessing.undoShort')}
                 {restoreCount > 0 && (
-                  <span className="ml-0.5 px-1.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">{restoreCount}</span>
+                  <span className="ml-0.5 px-1.5 rounded-full text-xs bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300">{restoreCount}</span>
                 )}
-              </button>
+              </TooltipButton>
             </div>
 
             {pendingConfirm === 'scoreZero' && (
@@ -2832,7 +2790,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
         {/* Barra de busca e filtros */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus-within:ring-2 focus-within:ring-indigo-500 transition-colors duration-200">
+            <div className="flex flex-wrap items-center gap-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus-within:ring-2 focus-within:ring-brand-500 transition-colors duration-200">
               <div className="relative flex-1 min-w-[12rem]">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
@@ -2844,27 +2802,16 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <div
-                role="radiogroup"
+              <RubberSegment
+                value={searchField}
+                onChange={setSearchField}
+                items={['all', 'title', 'titleAuthor', 'author'].map(field => ({
+                  value: field, label: t(`articles.searchField_${field}`),
+                }))}
                 aria-label={t('articles.searchFieldLabel')}
-                title={t('articles.searchFieldLabel')}
-                className="flex items-center gap-0.5 m-1 p-0.5 rounded-md bg-gray-100 dark:bg-gray-800"
-              >
-                {['all', 'title', 'titleAuthor', 'author'].map(field => (
-                  <button
-                    key={field}
-                    type="button"
-                    role="radio"
-                    aria-checked={searchField === field}
-                    onClick={() => setSearchField(field)}
-                    className={`px-2.5 py-1 text-xs font-medium rounded whitespace-nowrap transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${searchField === field
-                      ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-300 shadow-sm'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
-                  >
-                    {t(`articles.searchField_${field}`)}
-                  </button>
-                ))}
-              </div>
+                size="sm" radius={6} inset={2} equalSlots={false}
+                className="m-1"
+              />
             </div>
           </div>
 
@@ -2875,16 +2822,16 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
           {showAiTools && (
             <div className="flex flex-wrap gap-2">
               {assistEnabled && (
-                <button
+                <TooltipButton
                   onClick={() => onStartEvaluation({ articles: pendingInSection, protocol, stage: assistStage, settings: assistSettings, sectionTitle: getSectionTitle() })}
                   className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 whitespace-nowrap"
                   title={t('assist.evaluatePendingTitle')}
                 >
                   <Sparkles className="h-4 w-4" />
                   {t('assist.evaluatePending')}
-                </button>
+                </TooltipButton>
               )}
-              <button
+              <TooltipButton
                 onClick={() => setShowApplyModal(true)}
                 disabled={!applyPreview || applyPreview.applicable.length === 0}
                 className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200 whitespace-nowrap"
@@ -2893,7 +2840,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                 <Check className="h-4 w-4" />
                 {t('assist.applySuggestions')}
                 {applyPreview?.applicable.length > 0 && ` (${applyPreview.applicable.length})`}
-              </button>
+              </TooltipButton>
               {onOpenRules && <button type="button" onClick={onOpenRules}
                 className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors duration-200 whitespace-nowrap">
                 <Settings className="h-4 w-4" />{t('assist.editRules')}
@@ -2912,7 +2859,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                 <button
                   onClick={() => handleSort('title')}
                   className={`flex items-center gap-1 ${sortConfig.key === 'title'
-                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                    ? 'text-brand-600 dark:text-brand-400 font-semibold'
                     : 'hover:text-gray-700 dark:hover:text-gray-200'}`}
                 >
                   {t('articles.colTitle')}
@@ -2927,7 +2874,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                 <button
                   onClick={() => handleSort('source')}
                   className={`flex items-center gap-1 ${sortConfig.key === 'source'
-                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                    ? 'text-brand-600 dark:text-brand-400 font-semibold'
                     : 'hover:text-gray-700 dark:hover:text-gray-200'}`}
                 >
                   {t('articles.colSource')}
@@ -2942,7 +2889,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                 <button
                   onClick={() => handleSort('year')}
                   className={`flex items-center gap-1 ${sortConfig.key === 'year'
-                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                    ? 'text-brand-600 dark:text-brand-400 font-semibold'
                     : 'hover:text-gray-700 dark:hover:text-gray-200'}`}
                 >
                   {t('articles.colYear')}
@@ -2957,7 +2904,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                 <button
                   onClick={() => handleSort('score')}
                   className={`flex items-center gap-1 ${sortConfig.key === 'score'
-                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                    ? 'text-brand-600 dark:text-brand-400 font-semibold'
                     : 'hover:text-gray-700 dark:hover:text-gray-200'}`}
                 >
                   {t('articles.colScore')}
@@ -2970,10 +2917,10 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
               </th>
               {showAiTools && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                  <button
+                  <TooltipButton
                     onClick={() => handleSort('relevance')}
                     className={`flex items-center gap-1 ${sortConfig.key === 'relevance'
-                      ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                      ? 'text-brand-600 dark:text-brand-400 font-semibold'
                       : 'hover:text-gray-700 dark:hover:text-gray-200'}`}
                     title={t('assist.relevanceTitle')}
                   >
@@ -2983,7 +2930,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                         ? <ArrowUp className="h-3 w-3" />
                         : <ArrowDown className="h-3 w-3" />)
                       : <ArrowUpDown className="h-3 w-3" />}
-                  </button>
+                  </TooltipButton>
                 </th>
               )}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{t('articles.colStatus')}</th>
@@ -3030,9 +2977,9 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                     {article.year}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 ">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${quadrants(8, article.score || 0) ? 'bg-indigo-600 dark:bg-indigo-500 text-white' :
-                      quadrants(5, article.score || 0) ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-200' :
-                        quadrants(2, article.score || 0) ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' :
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${quadrants(8, article.score || 0) ? 'bg-brand-600 dark:bg-brand-500 text-white' :
+                      quadrants(5, article.score || 0) ? 'bg-brand-100 dark:bg-brand-900/60 text-brand-800 dark:text-brand-200' :
+                        quadrants(2, article.score || 0) ? 'bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300' :
                           'bg-gray-100 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400'
                       }`}>
                       {article.score === null ? '-' : article.score}
@@ -3066,7 +3013,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                   </td>
                   <td className="px-1 py-4 text-sm font-medium">
                     <div className="flex gap-1.5 w-fit" data-tour={rowIndex === 0 ? 'article-actions' : undefined}>
-                      <button aria-label={t('articles.includeTitle')}
+                      <TooltipButton aria-label={t('articles.includeTitle')}
                         onClick={() => {
                           if (currentFilter === 'dataprocessing') {
                             // incluir direto no filtro 1 sem abrir modal
@@ -3080,9 +3027,9 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                         title={t('articles.includeTitle')}
                       >
                         <CheckCircle size={16} />
-                      </button>
+                      </TooltipButton>
 
-                      <button aria-label={t('articles.excludeTitle')}
+                      <TooltipButton aria-label={t('articles.excludeTitle')}
                         onClick={() => {
                           if (currentFilter === 'dataprocessing') {
                             // incluir direto no filtro 1 sem abrir modal
@@ -3096,24 +3043,24 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                         title={t('articles.excludeTitle')}
                       >
                         <XCircle size={16} />
-                      </button>
-                      <button aria-label={t('articles.duplicateTitle')}
+                      </TooltipButton>
+                      <TooltipButton aria-label={t('articles.duplicateTitle')}
                         onClick={() => { handleDuplicate(article) }}
                         className="grid place-items-center w-[30px] h-[30px] p-0 rounded-md border-none transition-colors duration-200 bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700/60 dark:text-slate-200 dark:hover:bg-slate-700"
                         data-tour={rowIndex === 0 ? 'action-duplicate' : undefined}
                         title={t('articles.duplicateTitle')}
                       >
                         <BookCopy size={16} />
-                      </button>
+                      </TooltipButton>
 
-                      <button aria-label={t('articles.viewDetails')}
+                      <TooltipButton aria-label={t('articles.viewDetails')}
                         onClick={() => getCurrentArticle(article)}
-                        className="grid place-items-center w-[30px] h-[30px] p-0 rounded-md border-none transition-colors duration-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/70"
+                        className="grid place-items-center w-[30px] h-[30px] p-0 rounded-md border-none transition-colors duration-200 bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-900/40 dark:text-brand-300 dark:hover:bg-brand-900/70"
                         data-tour={rowIndex === 0 ? 'action-details' : undefined}
                         title={t('articles.viewDetails')}
                       >
                         <Eye size={16} />
-                      </button>
+                      </TooltipButton>
 
                     </div>
                   </td>
@@ -3152,7 +3099,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                     }
                   }}
                   onBlur={applyPageInput}
-                  className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm text-center"
+                  className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm text-center"
                   title={t('articles.pageJump')}
                   aria-label={t('articles.pageJump')}
                 />
@@ -3248,7 +3195,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
         />
       )}
 
-      {showApplyModal && applyPreview && (
+      <AnimatePresence>{showApplyModal && applyPreview && (
         <JevApplyModal
           sectionTitle={getSectionTitle()}
           rule={autoRuleSummary(protocol, assistStage)}
@@ -3257,7 +3204,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
           onConfirm={applySuggestions}
           onClose={() => setShowApplyModal(false)}
         />
-      )}
+      )}</AnimatePresence>
 
       {/* Menu de contexto */}
       {contextMenu && (
@@ -3270,14 +3217,14 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
         >
           {canAcceptSuggestion(contextMenu.article) && (
             <>
-              <button
+              <TooltipButton
                 onClick={() => handleContextMenuAction('accept', null, contextMenu.article)}
                 className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150 flex items-center"
                 title={suggestionTooltip(t, currentSuggestion(contextMenu.article), false)}
               >
-                <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400 mr-2" />
+                <Sparkles className="h-4 w-4 text-brand-600 dark:text-brand-400 mr-2" />
                 <span>{t('assist.accept')}</span>
-              </button>
+              </TooltipButton>
               <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
             </>
           )}
@@ -3301,7 +3248,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                 {t('articles.inclusionCriteriaMenu')}
               </div>
               {protocol.inclusionCriteria.filter(c => c.value.trim()).map((criterion, index) => (
-                <button
+                <TooltipButton
                   key={`inc-${index}`}
                   onClick={() => handleContextMenuAction('include', { id: criterion.id, label: criterion.value, category: 'inclusion' }, contextMenu.article)}
                   className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/30 transition-colors duration-150"
@@ -3310,7 +3257,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                   <span className="block truncate">
                     {criterion.value.length > 35 ? criterion.value.substring(0, 35) + '…' : criterion.value}
                   </span>
-                </button>
+                </TooltipButton>
               ))}
             </div>
           </div>
@@ -3337,7 +3284,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                 {t('articles.exclusionCriteriaMenu')}
               </div>
               {protocol.exclusionCriteria.filter(c => c.value.trim()).map((criterion, index) => (
-                <button
+                <TooltipButton
                   key={`exc-${index}`}
                   onClick={() => handleContextMenuAction('exclude', { id: criterion.id, label: criterion.value, category: 'exclusion' }, contextMenu.article)}
                   className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors duration-150"
@@ -3346,7 +3293,7 @@ const ArticlesList = ({ articles, currentFilter, onUpdateStatus, onDecision, dec
                   <span className="block truncate">
                     {criterion.value.length > 35 ? criterion.value.substring(0, 35) + '…' : criterion.value}
                   </span>
-                </button>
+                </TooltipButton>
               ))}
             </div>
           </div>
@@ -3717,15 +3664,6 @@ const SystematicReviewTool = () => {
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [autoSaveEnabled, articles, scoreZeroHistory, protocol, currentSection, importedData, statistics, warnAfterMin]);
-
-  // Fechar menu ao clicar fora
-  useEffect(() => {
-    const handleClickOutside = () => setShowFileMenu(false);
-    if (showFileMenu) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [showFileMenu]);
 
   // Repete o pedido de apoio em intervalos longos enquanto o app estiver aberto
   useEffect(() => {
@@ -4452,37 +4390,37 @@ const SystematicReviewTool = () => {
   // Itens do cabeçalho: usados como {Item()} e não <Item />. Como componentes criados
   // aqui dentro, o React recriaria os botões a cada render e o clique às vezes se perdia
   const ConfigureNotification = () => (
-    <button aria-label={t('header.notification')} onClick={() => setShowReminderSettings(true)} data-tour="reminder"
+    <TooltipButton aria-label={t('header.notification')} onClick={() => setShowReminderSettings(true)} data-tour="reminder"
       className="p-2 rounded-lg transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center"
       title={t('header.notification')}
     >
       <Bell className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-    </button>
+    </TooltipButton>
   );
 
   const AssistSettings = () => (
-    <button aria-label={t('assist.headerButton')} onClick={() => { setRulesOnlySettings(false); setShowJevSettings(true); }} data-tour="assist"
+    <TooltipButton aria-label={t('assist.headerButton')} onClick={() => { setRulesOnlySettings(false); setShowJevSettings(true); }} data-tour="assist"
       className="p-2 rounded-lg transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center"
       title={t('assist.headerButton')}
     >
       <Sparkles className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-    </button>
+    </TooltipButton>
   );
 
   // Componente Support
   const Support = () => {
     return (
-      <button aria-label={t('header.support')} onClick={() => setShowSupport(true)} data-tour="support"
+      <TooltipButton aria-label={t('header.support')} onClick={() => setShowSupport(true)} data-tour="support"
         className="p-2 rounded-lg transition-colors duration-200 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 flex items-center justify-center"
         title={t('header.support')}
       >
         <HeartHandshake className="h-5 w-5  dark:text-gray-300" />
-      </button>
+      </TooltipButton>
     );
   };
 
   const GuideButton = () => (
-    <button aria-label={t('header.guide')} onClick={() => {
+    <TooltipButton aria-label={t('header.guide')} onClick={() => {
       setShowChecklist(!showChecklist);
       setChecklistHidden(showChecklist);
     }}
@@ -4492,27 +4430,19 @@ const SystematicReviewTool = () => {
       aria-pressed={showChecklist}
     >
       <GraduationCap className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-    </button>
+    </TooltipButton>
   );
 
   const FileMenu = () => (
-    <div data-tour="file-menu" className="relative col-span-6 min-[520px]:col-auto w-full min-[520px]:w-auto" onClick={e => e.stopPropagation()}>
-      <button
-        onClick={() => setShowFileMenu(!showFileMenu)}
-        className="w-full min-[520px]:w-auto justify-center px-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-1"
-        title={t('file.menu')}
-      >
-        <FileText className="h-5 w-5" />
-        <div className="whitespace-nowrap">
-          {t('file.menu')}
-        </div>
-        <ChevronDown className={`inline-flex h-4 w-4 transition-transform ${showFileMenu ? 'rotate-180' : ''}`} />
-        {/* Arquivo */}
-
-      </button>
-
-      {showFileMenu && (
-        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg py-2 z-50">
+    <>
+      <input
+            ref={fileInputRef}
+            type="file"
+            accept=".srp,.json"
+            onChange={handleLoadProject}
+            className="hidden"
+          />
+      <MorphMenu open={showFileMenu} onOpenChange={setShowFileMenu} label={t('file.menu')} icon={FileText}>
           <button
             onClick={handleNewProject}
             className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
@@ -4521,13 +4451,7 @@ const SystematicReviewTool = () => {
             {t('file.new')}
           </button>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".srp,.json"
-            onChange={handleLoadProject}
-            className="hidden"
-          />
+
           <button
             onClick={handleOpenClick}
             className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
@@ -4560,9 +4484,9 @@ const SystematicReviewTool = () => {
             <Table className="h-4 w-4" />
             {t('file.export')}
           </button>
-        </div>
-      )}
-    </div>
+
+      </MorphMenu>
+    </>
   );
 
   const StatusIndicator = () => (
@@ -4632,7 +4556,7 @@ const SystematicReviewTool = () => {
   const extraSections = [sections[6], sections[7]];
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 m-0 p-0 transition-colors duration-200">
+    <div className="min-h-screen w-full bg-gradient-to-br from-brand-50 to-brand-100 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100 m-0 p-0 transition-colors duration-200">
       <a href="#conteudo"
         onClick={(e) => {
           // O main só fica focável durante o salto; focável o tempo todo, um clique nele desenha o contorno
@@ -4644,7 +4568,7 @@ const SystematicReviewTool = () => {
           main.scrollIntoView();
           main.addEventListener('blur', () => main.removeAttribute('tabindex'), { once: true });
         }}
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[10000] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-indigo-600 focus:text-white focus:shadow-lg">
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[10000] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-brand-600 focus:text-white focus:shadow-lg">
         {t('app.skipToContent')}
       </a>
       <div className="w-full h-full px-4 py-6">
@@ -4681,23 +4605,21 @@ const SystematicReviewTool = () => {
 
           {/* Navegação em etapas: as seis primeiras seções são uma sequência, com o andamento de cada uma */}
           <nav aria-label={t('nav.label')} className="flex flex-col lg:flex-row lg:items-stretch gap-2" data-tour="nav">
-            <ol ref={stepsListRef} className="relative flex flex-1 min-w-0 gap-1 overflow-x-auto overscroll-x-contain snap-x pb-1 -mb-1">
+            <RubberSegmentGroup value={currentSection} className="rubber-segment-group--navigation"><ol ref={stepsListRef} className="relative flex flex-1 min-w-0 gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain snap-x pb-1 -mb-1">
               {steps.map((step, index) => {
                 const Icon = step.icon;
                 const isDisabled = sectionsToCheck.includes(step.id) && articles.length === 0;
                 const isActive = currentSection === step.id;
                 return (
                   <li key={step.id} className="flex-none lg:flex-1 lg:min-w-[7.5rem] snap-start">
-                    <button
+                    <TooltipButton
+                      data-rubber-item=""
                       data-tour={`nav-${step.id}`}
                       onClick={() => setCurrentSection(step.id)}
                       disabled={isDisabled}
                       aria-current={isActive ? 'page' : undefined}
                       title={isDisabled ? t('nav.importArticlesDisabled') : undefined}
-                      className={`w-full h-full grid grid-cols-[auto_1fr] items-center gap-x-2 px-2.5 py-2 rounded-lg text-left border-none transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${isActive
-                        ? 'bg-indigo-100 dark:bg-indigo-900/50'
-                        : 'bg-gray-100 dark:bg-gray-700/60 enabled:hover:bg-gray-200 dark:enabled:hover:bg-gray-700'
-                        }`}
+                      className="relative bg-transparent w-full h-full grid grid-cols-[auto_1fr] items-center gap-x-2 px-2.5 py-2 rounded-lg text-left border-none transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {/* O anel em volta do número enche conforme a fração decidida da etapa */}
                       <span
@@ -4707,7 +4629,7 @@ const SystematicReviewTool = () => {
                       >
                         <span
                           className={`grid place-items-center rounded-full text-xs font-semibold tabular-nums ${isActive
-                            ? 'bg-indigo-100 text-indigo-700 dark:bg-[#282b5c] dark:text-indigo-200'
+                            ? 'bg-brand-100 text-brand-700 dark:bg-brand-800 dark:text-brand-200'
                             : step.done
                               ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
                               : 'bg-white text-gray-600 dark:bg-gray-800 dark:text-gray-300'
@@ -4716,7 +4638,7 @@ const SystematicReviewTool = () => {
                           {step.done && !isActive ? <Check size={13} /> : index + 1}
                         </span>
                       </span>
-                      <span className={`flex items-center gap-1.5 text-sm font-semibold whitespace-nowrap ${isActive ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-700 dark:text-gray-200'}`}>
+                      <span className={`flex items-center gap-1.5 text-sm font-semibold whitespace-nowrap ${isActive ? 'text-brand-700 dark:text-brand-300' : 'text-gray-700 dark:text-gray-200'}`}>
                         <Icon size={14} aria-hidden="true" className="flex-shrink-0" />
                         {step.name}
                       </span>
@@ -4727,35 +4649,36 @@ const SystematicReviewTool = () => {
                           <span className="sr-only"> ({Math.round(step.progress * 100)}%)</span>
                         )}
                       </span>
-                    </button>
+                    </TooltipButton>
                   </li>
                 );
               })}
-            </ol>
-            <div className="flex lg:flex-col gap-1 lg:pl-2 lg:border-l border-gray-200 dark:border-gray-700">
+            </ol></RubberSegmentGroup>
+            <RubberSegmentGroup value={currentSection} className="rubber-segment-group--navigation"><div className="flex lg:flex-col gap-1 lg:pl-2 lg:border-l border-gray-200 dark:border-gray-700">
               {extraSections.map((section) => {
                 const Icon = section.icon;
                 const isDisabled = sectionsToCheck.includes(section.id) && articles.length === 0;
                 const isActive = currentSection === section.id;
                 return (
-                  <button
+                  <TooltipButton
                     key={section.id}
+                    data-rubber-item=""
                     data-tour={`nav-${section.id}`}
                     onClick={() => setCurrentSection(section.id)}
                     disabled={isDisabled}
                     aria-current={isActive ? 'page' : undefined}
                     title={isDisabled ? t('nav.importArticlesDisabled') : undefined}
-                    className={`flex-1 flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border-none transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${isActive
-                      ? 'bg-indigo-600 text-white dark:bg-indigo-500'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 enabled:hover:bg-gray-200 dark:enabled:hover:bg-gray-600'
+                    className={`relative flex-1 flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border-none bg-transparent transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${isActive
+                      ? 'bg-transparent text-brand-800 dark:text-brand-100'
+                      : 'text-gray-700 dark:text-gray-300'
                       }`}
                   >
                     <Icon size={16} aria-hidden="true" className="flex-shrink-0" />
                     <span className="whitespace-nowrap">{section.name}</span>
-                  </button>
+                  </TooltipButton>
                 );
               })}
-            </div>
+            </div></RubberSegmentGroup>
           </nav>
         </div>
 
@@ -4829,7 +4752,7 @@ const SystematicReviewTool = () => {
         )}
 
         {currentSection === 'about' && (
-          <AboutSection />
+          <AboutSection theme={theme} />
         )}
 
         {currentSection === 'statistics' && (
@@ -4869,7 +4792,7 @@ const SystematicReviewTool = () => {
         <JevBatchModal job={evaluationJob} controller={evaluationController}
           rule={evaluationJob ? autoRuleSummary(protocol, evaluationJob.stage) : null} onEditRules={openAiRules} />
 
-        {showJevSettings && (
+        <AnimatePresence>{showJevSettings && (
           <JevSettingsModal
             settings={jevSettings}
             aiConfig={protocol.aiConfig}
@@ -4888,7 +4811,7 @@ const SystematicReviewTool = () => {
             }}
             onClose={closeAiSettings}
           />
-        )}
+        )}</AnimatePresence>
 
         <UnsavedWarningModal
           lastSaved={lastSaved}
@@ -4902,7 +4825,7 @@ const SystematicReviewTool = () => {
           onToggleAutoSave={toggleAutoSave}
         />
 
-        {showAutoSaveOffer && (
+        <AnimatePresence>{showAutoSaveOffer && (
           <AutoSaveOfferModal
             onEnable={async () => {
               const ok = await enableAutoSave();
@@ -4919,23 +4842,23 @@ const SystematicReviewTool = () => {
               }
             }}
           />
-        )}
+        )}</AnimatePresence>
 
-        {showReminderSettings && (
+        <AnimatePresence>{showReminderSettings && (
           <ReminderSettingsModal
             currentMinutes={warnAfterMin}
             onConfirm={(min) => { setWarnAfterMin(min); setShowReminderSettings(false); }}
             onClose={() => setShowReminderSettings(false)}
           />
-        )}
+        )}</AnimatePresence>
 
-        {showSupport && (
+        <AnimatePresence>{showSupport && (
           <SupportModal
             currentMinutes={warnAfterMin}
             onConfirm={(min) => { setWarnAfterMin(min); setShowSupport(false); }}
             onClose={() => setShowSupport(false)}
           />
-        )}
+        )}</AnimatePresence>
 
         {showChecklist && !articleDetailsOpen && (
           <OnboardingChecklist

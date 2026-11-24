@@ -5,6 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { ChartArea, Download, X, Map, Earth, Network, BarChart3, HelpCircle, Info } from 'lucide-react';
 import { Modal } from './Modal.jsx';
 import { BUTTON } from './buttons.js';
+import RubberSegment from './motion/RubberSegment.jsx';
+import RubberSegmentGroup from './motion/RubberSegmentGroup.jsx';
+import RubberMultiSegment from './motion/RubberMultiSegment.jsx';
 import { useFormat } from '../i18n/format.js';
 import {
   Line, Bar, Cell, Pie, PieChart, XAxis, YAxis,
@@ -517,13 +520,14 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
     onClose();
   };
 
-  if (!isOpen) return null;
+
 
   const resultW = mmToPx(widthMm, dpi);
   const resultH = mmToPx(heightMm, dpi);
 
   return (
     <Modal
+      open={isOpen}
       size="md"
       title={t('stats.exportConfigTitle', 'Configurar Exportação')}
       icon={Download}
@@ -542,17 +546,17 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
             <div className="flex-1">
               <label htmlFor="export-width-mm" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">{t('stats.widthMm', 'Largura (mm)')}</label>
               <input id="export-width-mm" type="number" value={widthMm} min={10} max={150} onChange={e => handleWidthChange(e.target.value)}
-                className="w-full h-10 px-3 text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border-gray-300 dark:border-gray-600" />
+                className="w-full h-10 px-3 text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 border-gray-300 dark:border-gray-600" />
             </div>
             <div className="flex-1">
               <label htmlFor="export-height-mm" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">{t('stats.heightMm', 'Altura (mm)')}</label>
               <input id="export-height-mm" type="number" value={heightMm} min={10} max={150} onChange={e => handleHeightChange(e.target.value)} disabled={keepRatio && !lockedAspect}
-                className="w-full h-10 px-3 text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border-gray-300 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed" />
+                className="w-full h-10 px-3 text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 border-gray-300 dark:border-gray-600 disabled:opacity-40 disabled:cursor-not-allowed" />
             </div>
             <div className="w-24">
               <label htmlFor="export-font-pt" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">{t('stats.fontPt', 'Fonte (pt)')}</label>
               <input id="export-font-pt" type="number" min={6} max={24} value={fontPt} onChange={e => { setExportWarning(null); setFontPt(e.target.value); }}
-                className="w-full h-10 px-3 text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border-gray-300 dark:border-gray-600" />
+                className="w-full h-10 px-3 text-sm rounded-lg border transition-colors bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 border-gray-300 dark:border-gray-600" />
             </div>
           </div>
 
@@ -560,7 +564,7 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
             {!lockedAspect && (
               <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                 <input type="checkbox" checked={keepRatio} onChange={e => handleKeepRatioChange(e.target.checked)}
-                  className="accent-indigo-500" />
+                  className="accent-brand-500" />
                 {t('stats.keepRatio', 'Manter proporção')}
               </label>
             )}
@@ -578,7 +582,7 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
               <div className="rounded-lg border border-gray-200 dark:border-gray-600 p-2 bg-white overflow-hidden">
                 {previewLoading && (
                   <div className="flex items-center justify-center py-8 text-xs text-gray-400 gap-2">
-                    <div className="animate-spin inline-block h-4 w-4 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
+                    <div className="animate-spin inline-block h-4 w-4 border-2 border-brand-600 border-t-transparent rounded-full"></div>
                     {t('stats.generatingPreview', 'Gerando pré-visualização…')}
                   </div>
                 )}
@@ -617,7 +621,7 @@ const ExportConfigModal = ({ isOpen, onClose, onExport, format = 'png', svgEleme
 const NetworkHelpModal = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
 
-  if (!isOpen) return null;
+
 
   const sections = [
     { title: t('stats.networkHelpAlgorithmTitle'), text: t('stats.networkHelpAlgorithmText') },
@@ -628,6 +632,7 @@ const NetworkHelpModal = ({ isOpen, onClose }) => {
 
   return (
     <Modal
+      open={isOpen}
       size="md"
       title={t('stats.networkHelpTitle')}
       icon={HelpCircle}
@@ -788,11 +793,11 @@ const WorldHeatmap = forwardRef(({ countriesCount, isDark }, svgExportRef) => {
 
       {tooltip && (
         <div style={{ position: 'absolute', left: tooltip.x + 14, top: tooltip.y - 12, pointerEvents: 'none', zIndex: 20 }}
-          className="bg-gray-900 border border-indigo-500/40 rounded-lg px-3 py-2 shadow-xl text-white text-xs">
+          className="bg-gray-900 border border-brand-500/40 rounded-lg px-3 py-2 shadow-xl text-white text-xs">
           <div className="font-semibold text-sm mb-0.5">
             {COUNTRY_NAMES_MAP[tooltip.iso] || tooltip.iso || t('stats.unknown')}
           </div>
-          <div className="text-indigo-300 font-medium">
+          <div className="text-brand-300 font-medium">
             {tooltip.count > 0 ? t('stats.publicationsCount', { count: tooltip.count }) : t('stats.noData')}
           </div>
         </div>
@@ -1009,8 +1014,8 @@ const SourcePicker = ({ slotId, currentSource, sources, usedSources, isOpen, onT
       <button
         onClick={() => onToggle(pickerId)}
         title={t('stats.changeSource')}
-        className="bg-indigo-600 dark:bg-indigo-500 border-none rounded-full px-2.5 py-1 cursor-pointer
-                   transition duration-200 hover:scale-110 hover:bg-indigo-500 flex items-center"
+        className="bg-brand-600 dark:bg-brand-500 border-none rounded-full px-2.5 py-1 cursor-pointer
+                   transition duration-200 hover:scale-110 hover:bg-brand-500 flex items-center"
       >
         <span className="text-[11px] text-white font-semibold leading-none">{displaySource(currentSource)}</span>
       </button>
@@ -1025,7 +1030,7 @@ const SourcePicker = ({ slotId, currentSource, sources, usedSources, isOpen, onT
                 disabled={isOccupied}
                 onClick={() => { if (!isOccupied) { onChange(src); onToggle(pickerId); } }}
                 className={`w-full text-left px-4 py-2 text-sm rounded border-none
-                  ${isActive ? 'text-indigo-400 bg-gray-700 font-semibold cursor-default' : ''}
+                  ${isActive ? 'text-brand-400 bg-gray-700 font-semibold cursor-default' : ''}
                   ${isOccupied ? 'text-gray-500 bg-transparent cursor-not-allowed' : ''}
                   ${!isActive && !isOccupied ? 'text-white bg-transparent hover:bg-gray-700 cursor-pointer' : ''}`}
               >
@@ -1044,22 +1049,7 @@ const SourcePicker = ({ slotId, currentSource, sources, usedSources, isOpen, onT
 // ─────────────────────────────────────────────────────────────────────────────
 // MultiToggle / SectionWrapper / ChartInstance
 // ─────────────────────────────────────────────────────────────────────────────
-const MultiToggle = ({ options, selected, onToggle, label }) => (
-  <div className="flex flex-wrap gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
-    {options.map(opt => {
-      const active = selected.has(opt);
-      const renderLabel = label ? label(opt) : opt;
-      return (
-        <button key={opt} onClick={() => onToggle(opt)}
-          className={`px-3 py-1 text-xs sm:text-sm rounded-md font-medium transition duration-150 cursor-pointer border-none
-            ${active
-              ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
-              : 'text-gray-500 dark:text-gray-400 bg-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}
-        >{renderLabel}</button>
-      );
-    })}
-  </div>
-);
+const MultiToggle = RubberMultiSegment;
 
 const SectionWrapper = ({ title, controls, children }) => (
   <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-700 mb-6">
@@ -1146,16 +1136,16 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
   ];
   const [activeTab, setActiveTab] = useState('bibliometria');
   const TabNav = () => (
-    <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl mb-6 w-fit">
+    <RubberSegmentGroup value={activeTab} className="rubber-segment-group--statistics"><div role="group" aria-label={t('stats.sectionTitle')} data-stats-segment="tabs" className="flex flex-wrap max-w-full gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl mb-6 w-fit">
       {TABS.map(tab => (
-        <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-          className={`px-5 py-2 rounded-lg text-sm font-semibold transition duration-150 cursor-pointer border-none
+        <button key={tab.id} type="button" data-rubber-item="" aria-pressed={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}
+          className={`relative bg-transparent px-5 py-2 rounded-lg text-sm font-semibold transition duration-150 cursor-pointer border-none
             ${activeTab === tab.id
-              ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              ? 'text-brand-600 dark:text-brand-400'
               : 'text-gray-500 dark:text-gray-400 bg-transparent hover:text-gray-700 dark:hover:text-gray-200'}`}
         >{tab.label}</button>
       ))}
-    </div>
+    </div></RubberSegmentGroup>
   );
 
   // ── refs dinâmicos ────────────────────────────────────────────────────────
@@ -1736,7 +1726,7 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
           {t('stats.sectionTitle')}
         </h2>
 
-        <TabNav />
+        {TabNav()}
       </div>
 
       {/* ═══ ABA BIBLIOMETRIA ════════════════════════════════════════════════ */}
@@ -1789,37 +1779,25 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                     t('stats.pubByContinentMap')
               }
               controls={
-                <div className="flex items-center gap-2">
-                  {/* Botão: mapa de países */}
-                  <button aria-label={countryView === 'map' ? t('stats.backToChart') : t('stats.mapByCountry')}
-                    onClick={() => setCountryView(countryView === 'map' ? 'bar' : 'map')}
-                    title={countryView === 'map' ? t('stats.backToChart') : t('stats.mapByCountry')}
-                    className={`rounded-full p-1.5 cursor-pointer transition duration-200 hover:scale-110 flex items-center justify-center border-none
-                      ${countryView === 'map' ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-gray-800 dark:bg-gray-600'}`}
-                  >
-                    <Map size={12} color="white" />
-                  </button>
-                  {/* Botão: mapa de continentes */}
-                  <button aria-label={countryView === 'continent' ? t('stats.backToChart') : t('stats.mapByContinent')}
-                    onClick={() => setCountryView(countryView === 'continent' ? 'bar' : 'continent')}
-                    title={countryView === 'continent' ? t('stats.backToChart') : t('stats.mapByContinent')}
-                    className={`rounded-full p-1.5 cursor-pointer transition duration-200 hover:scale-110 flex items-center justify-center border-none
-                      ${countryView === 'continent' ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-gray-800 dark:bg-gray-600'}`}
-                    style={{ width: 24, height: 24, fontSize: 11 }}
-                  >
-                    <Earth size={12} color="white" />
-                  </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <RubberSegment value={countryView} onChange={setCountryView} size="sm" radius={8} inset={3} equalSlots={false}
+                    aria-label={t('stats.viewLabel')}
+                    items={[
+                      { value: 'bar', label: '', icon: <BarChart3 size={14} aria-hidden="true" />, ariaLabel: t('stats.backToChart'), title: t('stats.backToChart') },
+                      { value: 'map', label: '', icon: <Map size={14} aria-hidden="true" />, ariaLabel: t('stats.mapByCountry'), title: t('stats.mapByCountry') },
+                      { value: 'continent', label: '', icon: <Earth size={14} aria-hidden="true" />, ariaLabel: t('stats.mapByContinent'), title: t('stats.mapByContinent') },
+                    ]} />
                   {/* Controle Top N (só visível no modo gráfico) */}
                   {countryView === 'bar' && (
                     <>
                       <span className="text-xs text-gray-500 dark:text-gray-400">{t('stats.top')}</span>
                       <input type="range" aria-label={t('stats.top')} min={1} max={Math.max(1, countriesCount.length)} value={topNCountries}
-                        onChange={e => setTopNCountries(Number(e.target.value))} className="w-32 accent-indigo-600 cursor-pointer" />
+                        onChange={e => setTopNCountries(Number(e.target.value))} className="w-32 accent-brand-600 cursor-pointer" />
                       <input type="number" aria-label={t('stats.top')} min={1} max={Math.max(1, countriesCount.length)} value={topNCountries}
                         onChange={e => setTopNCountries(Math.min(Math.max(Number(e.target.value), 1), Math.max(1, countriesCount.length)))}
                         className="w-14 text-center text-xs rounded-md border border-gray-300 dark:border-gray-600
                                    bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
-                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 px-1 py-1" />
+                                   focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 px-1 py-1" />
                     </>
                   )}
                 </div>
@@ -1864,12 +1842,12 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500 dark:text-gray-400">{t('stats.top')}</span>
                   <input type="range" aria-label={t('stats.top')} min={1} max={Math.max(1, journalCount.length)} value={topNJournals}
-                    onChange={e => setTopNJournals(Number(e.target.value))} className="w-32 accent-indigo-600 cursor-pointer" />
+                    onChange={e => setTopNJournals(Number(e.target.value))} className="w-32 accent-brand-600 cursor-pointer" />
                   <input type="number" aria-label={t('stats.top')} min={1} max={Math.max(1, journalCount.length)} value={topNJournals}
                     onChange={e => setTopNJournals(Math.min(Math.max(Number(e.target.value), 1), Math.max(1, journalCount.length)))}
                     className="w-14 text-center text-xs rounded-md border border-gray-300 dark:border-gray-600
                                bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
-                               focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 px-1 py-1" />
+                               focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 px-1 py-1" />
                 </div>
               }
             >
@@ -1906,12 +1884,12 @@ const StatisticsSection = ({ articles, onUpdateStatus, inclusionCriteria, exclus
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{t('stats.interval')}</span>
                 <input type="range" aria-label={t('stats.interval')} min={1} max={5} value={scoreBinSize}
-                  onChange={e => setScoreBinSize(Number(e.target.value))} className="w-32 accent-indigo-600 cursor-pointer" />
+                  onChange={e => setScoreBinSize(Number(e.target.value))} className="w-32 accent-brand-600 cursor-pointer" />
                 <input type="number" aria-label={t('stats.interval')} min={1} max={5} value={scoreBinSize}
                   onChange={e => setScoreBinSize(Math.min(Math.max(Number(e.target.value), 1), 5))}
                   className="w-14 text-center text-xs rounded-md border border-gray-300 dark:border-gray-600
                              bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300
-                             focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 px-1 py-1" />
+                             focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 px-1 py-1" />
               </div>
             ),
             renderChart: (slot, chartRef) => {
@@ -2352,74 +2330,74 @@ const NetworkTab = ({ articles, theme }) => {
       <div className="flex flex-wrap items-center gap-4 mb-6">
         <div className="flex items-center gap-2">
           <span id="network-type-label" className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.networkLabel')}</span>
-          <div role="group" aria-labelledby="network-type-label" className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
-            <button
+          <RubberSegmentGroup value={networkType} className="rubber-segment-group--statistics"><div role="group" aria-labelledby="network-type-label" className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+            <button type="button" data-rubber-item="" aria-pressed={networkType === 'coauthorship'}
               onClick={() => setNetworkType('coauthorship')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${networkType === 'coauthorship'
-                ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              className={`relative bg-transparent px-3 py-1.5 rounded-md text-sm font-medium transition ${networkType === 'coauthorship'
+                ? 'text-brand-600 dark:text-brand-400'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
             >
               {t('stats.coauthorship')}
             </button>
-            <button
+            <button type="button" data-rubber-item="" aria-pressed={networkType === 'keywords'}
               onClick={() => setNetworkType('keywords')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${networkType === 'keywords'
-                ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              className={`relative bg-transparent px-3 py-1.5 rounded-md text-sm font-medium transition ${networkType === 'keywords'
+                ? 'text-brand-600 dark:text-brand-400'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
             >
               {t('stats.keywords')}
             </button>
-          </div>
+          </div></RubberSegmentGroup>
         </div>
 
         <div className="flex items-center gap-2">
           <span id="network-counting-label" className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.countingLabel')}</span>
-          <div role="group" aria-labelledby="network-counting-label" className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
-            <button
+          <RubberSegmentGroup value={countingMethod} className="rubber-segment-group--statistics"><div role="group" aria-labelledby="network-counting-label" className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+            <button type="button" data-rubber-item="" aria-pressed={countingMethod === 'fractional'}
               onClick={() => setCountingMethod('fractional')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${countingMethod === 'fractional'
-                ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              className={`relative bg-transparent px-3 py-1.5 rounded-md text-sm font-medium transition ${countingMethod === 'fractional'
+                ? 'text-brand-600 dark:text-brand-400'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
             >
               {t('stats.fractional')}
             </button>
-            <button
+            <button type="button" data-rubber-item="" aria-pressed={countingMethod === 'full'}
               onClick={() => setCountingMethod('full')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${countingMethod === 'full'
-                ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              className={`relative bg-transparent px-3 py-1.5 rounded-md text-sm font-medium transition ${countingMethod === 'full'
+                ? 'text-brand-600 dark:text-brand-400'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
             >
               {t('stats.full')}
             </button>
-          </div>
+          </div></RubberSegmentGroup>
         </div>
 
         <div className="flex items-center gap-2">
           <span id="network-view-label" className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.viewLabel')}</span>
-          <div role="group" aria-labelledby="network-view-label" className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
-            <button
+          <RubberSegmentGroup value={viewMode} className="rubber-segment-group--statistics"><div role="group" aria-labelledby="network-view-label" className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+            <button type="button" data-rubber-item="" aria-pressed={viewMode === 'network'}
               onClick={() => setViewMode('network')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === 'network'
-                ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              className={`relative bg-transparent px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === 'network'
+                ? 'text-brand-600 dark:text-brand-400'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
             >
               {t('stats.viewNetwork')}
             </button>
-            <button
+            <button type="button" data-rubber-item="" aria-pressed={viewMode === 'density'}
               onClick={() => setViewMode('density')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === 'density'
-                ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              className={`relative bg-transparent px-3 py-1.5 rounded-md text-sm font-medium transition ${viewMode === 'density'
+                ? 'text-brand-600 dark:text-brand-400'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
             >
               {t('stats.density')}
             </button>
-          </div>
+          </div></RubberSegmentGroup>
         </div>
 
         <div className="ml-auto">
@@ -2443,7 +2421,7 @@ const NetworkTab = ({ articles, theme }) => {
             max="50"
             value={minOccurrences}
             onChange={(e) => setMinOccurrences(Math.max(1, parseInt(e.target.value) || 1))}
-            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           />
         </div>
 
@@ -2455,31 +2433,31 @@ const NetworkTab = ({ articles, theme }) => {
             max="500"
             value={topN}
             onChange={(e) => setTopN(Math.max(0, parseInt(e.target.value) || 0))}
-            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           />
           <span className="text-xs text-gray-500 dark:text-gray-400">{t('stats.topNHint')}</span>
         </div>
 
         <div className="flex items-center gap-2">
           <span id="network-label-position" className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('stats.labelPositionLabel')}</span>
-          <div role="group" aria-labelledby="network-label-position" className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+          <RubberSegmentGroup value={labelPosition} className="rubber-segment-group--statistics"><div role="group" aria-labelledby="network-label-position" className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
             {[
               { value: 'above', label: t('stats.labelAbove') },
               { value: 'center', label: t('stats.labelCenter') },
               { value: 'below', label: t('stats.labelBelow') }
             ].map(opt => (
-              <button
-                key={opt.value}
+              <button type="button" data-rubber-item="" aria-pressed={labelPosition === opt.value}
+              key={opt.value}
                 onClick={() => setLabelPosition(opt.value)}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${labelPosition === opt.value
-                  ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                className={`relative bg-transparent px-2.5 py-1 rounded-md text-xs font-medium transition ${labelPosition === opt.value
+                  ? 'text-brand-600 dark:text-brand-400'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                   }`}
               >
                 {opt.label}
               </button>
             ))}
-          </div>
+          </div></RubberSegmentGroup>
         </div>
 
         {networkType === 'keywords' && (
@@ -2492,7 +2470,7 @@ const NetworkTab = ({ articles, theme }) => {
               step="5"
               value={labelOpacityThreshold}
               onChange={(e) => setLabelOpacityThreshold(parseInt(e.target.value) || 0)}
-              className="w-32 accent-indigo-500 cursor-pointer"
+              className="w-32 accent-brand-500 cursor-pointer"
               aria-label={t('stats.opacityLabel')}
             />
             <div className="relative">
@@ -2503,7 +2481,7 @@ const NetworkTab = ({ articles, theme }) => {
                 value={labelOpacityThreshold}
                 onChange={(e) => setLabelOpacityThreshold(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
                 aria-label={t('stats.opacityLabel')}
-                className="w-16 px-2 py-1.5 pr-5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-16 px-2 py-1.5 pr-5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500 pointer-events-none">%</span>
             </div>
@@ -2517,7 +2495,7 @@ const NetworkTab = ({ articles, theme }) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={networkType === 'keywords' ? t('stats.searchPlaceholderKeywords') : t('stats.searchPlaceholder')}
-            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           />
         </div>
 
@@ -2530,19 +2508,19 @@ const NetworkTab = ({ articles, theme }) => {
             <span className="font-semibold text-gray-700 dark:text-gray-300">
               {networkType === 'keywords' ? t('stats.keywords') : t('stats.authors')}:
             </span>
-            <span className="text-indigo-600 dark:text-indigo-400 font-bold tabular-nums">{filteredData.stats.nodeCount}</span>
+            <span className="text-brand-600 dark:text-brand-400 font-bold tabular-nums">{filteredData.stats.nodeCount}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-semibold text-gray-700 dark:text-gray-300">{t('stats.connections')}:</span>
-            <span className="text-indigo-600 dark:text-indigo-400 font-bold tabular-nums">{filteredData.stats.edgeCount}</span>
+            <span className="text-brand-600 dark:text-brand-400 font-bold tabular-nums">{filteredData.stats.edgeCount}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-semibold text-gray-700 dark:text-gray-300">{t('stats.clusters')}:</span>
-            <span className="text-indigo-600 dark:text-indigo-400 font-bold tabular-nums">{visibleClusterCount}</span>
+            <span className="text-brand-600 dark:text-brand-400 font-bold tabular-nums">{visibleClusterCount}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-semibold text-gray-700 dark:text-gray-300">{t('stats.density')}:</span>
-            <span className="text-indigo-600 dark:text-indigo-400 font-bold tabular-nums">
+            <span className="text-brand-600 dark:text-brand-400 font-bold tabular-nums">
               {fmt.num(filteredData.stats?.density, 4)}
             </span>
           </div>
@@ -2552,7 +2530,7 @@ const NetworkTab = ({ articles, theme }) => {
       {isComputing && (
         <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 flex items-center justify-center" style={{ height: '550px' }}>
           <div className="flex items-center text-xs text-gray-400 gap-2">
-            <div className="animate-spin inline-block h-4 w-4 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
+            <div className="animate-spin inline-block h-4 w-4 border-2 border-brand-600 border-t-transparent rounded-full"></div>
             {t('stats.calculatingNetworkShort')}
           </div>
         </div>
@@ -2634,11 +2612,11 @@ const NetworkTab = ({ articles, theme }) => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <div>
               <span className="text-gray-500 dark:text-gray-400">{countLabel}</span>
-              <p className="font-bold text-indigo-600 dark:text-indigo-400">{selectedNode[countKey]}</p>
+              <p className="font-bold text-brand-600 dark:text-brand-400">{selectedNode[countKey]}</p>
             </div>
             <div>
               <span className="text-gray-500 dark:text-gray-400">{t('stats.cluster')}</span>
-              <p className="font-bold text-indigo-600 dark:text-indigo-400">
+              <p className="font-bold text-brand-600 dark:text-brand-400">
                 {selectedNode.clusterId !== null ? selectedNode.clusterId + 1 : '-'}
               </p>
             </div>

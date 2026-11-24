@@ -7,11 +7,11 @@ import { ICON_BUTTON } from './buttons.js';
 
 const TONES = {
   neutral: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
-  info: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400',
+  info: 'bg-brand-100 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400',
   success: 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400',
   warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400',
 };
-const BARS = { neutral: 'bg-gray-400', info: 'bg-indigo-500 dark:bg-indigo-400', success: 'bg-green-500', warning: 'bg-amber-500' };
+const BARS = { neutral: 'bg-gray-400', info: 'bg-brand-500 dark:bg-brand-400', success: 'bg-green-500', warning: 'bg-amber-500' };
 
 // No celular ocupa a largura toda (com margem); nas telas maiores fica no canto ou no centro
 const POSITIONS = {

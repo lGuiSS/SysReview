@@ -11,12 +11,12 @@ const ICONS = {
 
 export const AlertModal = ({ isOpen, type = 'info', title, message, onClose }) => {
   const { t } = useTranslation();
-  if (!isOpen) return null;
 
   const { Icon, tone } = ICONS[type] || ICONS.info;
 
   return (
     <Modal
+      open={isOpen}
       size="sm"
       role="alertdialog"
       layer="top"

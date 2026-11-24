@@ -23,7 +23,7 @@ export const OnboardingChecklist = ({ items, isSectionAvailable, onGoToSection, 
 
   const progressBar = (
     <div className="h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-      <div className="h-full rounded-full bg-indigo-600 dark:bg-indigo-400 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${progress}%` }} />
+      <div className="h-full rounded-full bg-brand-600 dark:bg-brand-400 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${progress}%` }} />
     </div>
   );
 
@@ -38,7 +38,7 @@ export const OnboardingChecklist = ({ items, isSectionAvailable, onGoToSection, 
       >
         <span className="flex items-center justify-between gap-2 w-full text-sm font-medium text-gray-800 dark:text-gray-100">
           <span className="flex items-center gap-2">
-            <GraduationCap className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <GraduationCap className="h-4 w-4 text-brand-600 dark:text-brand-400" />
             {t('checklist.title')}
           </span>
           <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
@@ -60,7 +60,7 @@ export const OnboardingChecklist = ({ items, isSectionAvailable, onGoToSection, 
     >
       <div className="flex items-center justify-between gap-2 mb-2">
         <h3 className="flex items-center gap-2 font-semibold text-gray-900 dark:text-white">
-          <GraduationCap className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+          <GraduationCap className="h-4 w-4 text-brand-600 dark:text-brand-400" />
           {t('checklist.title')}
         </h3>
         <div className="flex items-center gap-1">
@@ -115,7 +115,7 @@ export const OnboardingChecklist = ({ items, isSectionAvailable, onGoToSection, 
 
       <button
         onClick={onStartTour}
-        className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-lg border-none cursor-pointer transition-colors duration-150"
+        className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-900/30 hover:bg-brand-100 dark:hover:bg-brand-900/50 rounded-lg border-none cursor-pointer transition-colors duration-150"
       >
         <MapIcon className="h-4 w-4" />
         {t('checklist.startTour')}

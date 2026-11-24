@@ -10,7 +10,7 @@ export const SIZES = {
 // Ícone do título: neutro por padrão; tons semânticos só em alertas e confirmações
 export const ICON_TONES = {
   neutral: 'text-gray-500 dark:text-gray-400',
-  info: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400',
+  info: 'bg-brand-100 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400',
   success: 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400',
   danger: 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400',
   warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400',

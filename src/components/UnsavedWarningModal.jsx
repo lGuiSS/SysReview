@@ -112,7 +112,7 @@ export function UnsavedWarningModal({ lastSaved, hasUnsavedChanges = false, file
             type="checkbox"
             checked={autoSaveEnabled}
             onChange={(e) => onToggleAutoSave?.(e.target.checked)}
-            className="accent-indigo-500 w-4 h-4"
+            className="accent-brand-500 w-4 h-4"
           />
           {t('autosave.unsavedCheckbox')}
         </label>

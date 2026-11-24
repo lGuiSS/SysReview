@@ -1,32 +1,64 @@
 // ArticleMenus.jsx - Menus do topo do detalhe: últimas decisões (desfazer) e aparência
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { AnimatePresence, motion as Motion, useIsPresent, useReducedMotion } from 'motion/react';
+import { panelMotion } from '../motion/transitions.js';
 import { useTranslation } from 'react-i18next';
 import { canUndoDecision } from '../../decisionHistory.js';
 import { STATUS_BADGES, STAGE_LABEL } from './articleView.js';
 
 // Painel que abre abaixo do botão; fecha ao clicar fora (o Esc é tratado pelo detalhe)
 export function Popover({ open, onClose, label, children, anchorRef, className = '' }) {
+  return <AnimatePresence>{open && <PopoverPanel onClose={onClose} label={label} anchorRef={anchorRef} className={className}>{children}</PopoverPanel>}</AnimatePresence>;
+}
+
+function PopoverPanel({ onClose, label, children, anchorRef, className }) {
+  const present = useIsPresent();
+  const reduced = useReducedMotion();
   const panelRef = useRef(null);
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    const place = () => {
+      const anchor = anchorRef?.current;
+      if (!panel || !anchor) return;
+      const bottom = anchor.getBoundingClientRect().bottom + 8;
+      const dialog = panel.closest('[role="dialog"]');
+      const dialogTop = dialog && getComputedStyle(dialog).transform !== 'none'
+        ? dialog.getBoundingClientRect().top : 0;
+      panel.style.setProperty('--popover-top', `${bottom - dialogTop}px`);
+      panel.style.maxHeight = `${Math.max(100, window.innerHeight - bottom - 16)}px`;
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [anchorRef]);
   useEffect(() => {
-    if (!open) return;
+    if (!present && panelRef.current?.contains(document.activeElement)) {
+      anchorRef?.current?.querySelector('button')?.focus({ preventScroll: true });
+    }
+  }, [present, anchorRef]);
+  useEffect(() => {
+    if (!present) return;
     const onDown = (e) => {
       if (panelRef.current?.contains(e.target) || anchorRef?.current?.contains(e.target)) return;
       onClose();
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
-  }, [open, onClose, anchorRef]);
-  if (!open) return null;
+  }, [present, onClose, anchorRef]);
   return (
-    <div
+    <Motion.div
+      {...panelMotion(reduced, 'menu')}
+      style={{ transformOrigin: 'top right' }}
+      inert={!present}
+      aria-hidden={!present || undefined}
       ref={panelRef}
       role="group"
       aria-label={label}
-      className={`absolute right-0 top-full mt-2 z-20 w-[min(26rem,calc(100vw-2rem))] max-sm:fixed max-sm:left-4 max-sm:right-4 max-sm:top-28 max-sm:w-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-2xl p-2 ${className}`}
+      className={`absolute right-0 top-full mt-2 z-20 w-[min(26rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain max-sm:fixed max-sm:left-4 max-sm:right-4 max-sm:top-[var(--popover-top)] max-sm:mt-0 max-sm:w-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-2xl p-2 ${className}`}
     >
       {children}
-    </div>
+    </Motion.div>
   );
 }
 
@@ -60,7 +92,7 @@ export function DecisionsMenu({ entries, articlesById, onUndo, onOpen }) {
                 </button>
               )}
               {article && (
-                <button type="button" onClick={() => onOpen(article)} className="shrink-0 h-8 px-2.5 rounded-md border-none bg-transparent text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40">
+                <button type="button" onClick={() => onOpen(article)} className="shrink-0 h-8 px-2.5 rounded-md border-none bg-transparent text-xs font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/40">
                   {t('articleView.open')}
                 </button>
               )}
@@ -74,9 +106,9 @@ export function DecisionsMenu({ entries, articlesById, onUndo, onOpen }) {
 
 const Choice = ({ name, value, current, onChange, title, hint }) => (
   <label className={`flex items-start gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${current === value
-    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
+    ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/30'
     : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
-    <input type="radio" name={name} checked={current === value} onChange={() => onChange(value)} className="mt-1 accent-indigo-600" />
+    <input type="radio" name={name} checked={current === value} onChange={() => onChange(value)} className="mt-1 accent-brand-600" />
     <span className="min-w-0">
       <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">{title}</span>
       {hint && <span className="block text-xs text-gray-500 dark:text-gray-400">{hint}</span>}
@@ -113,9 +145,9 @@ export function AppearanceMenu({ view, onChange }) {
       <fieldset>
         <legend className="mb-2 text-sm font-semibold text-gray-900 dark:text-white">{t('articleView.marker')}</legend>
         <div className="flex gap-2">
-          {[['yellow', 'bg-yellow-300'], ['indigo', 'bg-indigo-400']].map(([value, swatch]) => (
-            <label key={value} className={`flex items-center gap-2 h-9 px-3 rounded-lg border cursor-pointer text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500 ${view.marker === value
-              ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-gray-900 dark:text-white'
+          {[['yellow', 'bg-yellow-300'], ['indigo', 'bg-brand-400']].map(([value, swatch]) => (
+            <label key={value} className={`flex items-center gap-2 h-9 px-3 rounded-lg border cursor-pointer text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 ${view.marker === value
+              ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/30 text-gray-900 dark:text-white'
               : 'border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
               <input type="radio" name="article-marker" checked={view.marker === value} onChange={() => set('marker')(value)} className="sr-only" />
               <span aria-hidden="true" className={`w-3.5 h-3.5 rounded ${swatch}`} />

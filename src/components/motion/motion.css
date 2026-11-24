@@ -1,0 +1,37 @@
+/* SysReview adaptations: Transitions.dev and React Bits. See public/licenses/. */
+:root { --motion-ease-out: cubic-bezier(.22, 1, .36, 1); --motion-quick: 150ms; --motion-enter: 250ms; }
+.warm-tooltip { position: fixed; top: 0; left: 0; z-index: 10020; width: max-content; max-width: min(22rem, calc(100vw - 16px)); padding: 7px 10px; border: 1px solid rgb(var(--gray-200)); border-radius: 8px; background: rgb(var(--white)); color: rgb(var(--gray-900)); font-size: 13px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; box-shadow: 0 4px 14px #0002; }
+.dark .warm-tooltip { background: rgb(var(--gray-800)); color: rgb(var(--gray-50)); border-color: rgb(var(--gray-600)); }
+.spring-check { position: relative; display: inline-grid; place-items: center; flex-shrink: 0; width: 20px; height: 20px; margin-top: 2px; --check-fill: rgb(var(--brand-600)); }
+.spring-check__input { appearance: none; position: absolute; inset: 0; margin: 0; padding: 0; width: 100%; height: 100%; border: 2px solid rgb(var(--gray-500)); border-radius: 6px; background: transparent; cursor: pointer; }
+.dark .spring-check__input { border-color: rgb(var(--gray-400)); }
+.spring-check__input:focus-visible { outline: 2px solid rgb(var(--brand-500)); outline-offset: 3px; }
+.spring-check__input:disabled { cursor: not-allowed; opacity: .5; }
+.spring-check__fill { position: absolute; inset: 0; border-radius: 6px; background: var(--check-fill); pointer-events: none; }
+.spring-check__tick { position: relative; width: 15px; height: 15px; fill: none; stroke: white; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.spring-check--inclusion { --check-fill: #16a34a; }
+.spring-check--exclusion { --check-fill: #dc2626; }
+.spring-check--quality { --check-fill: #2563eb; }
+.dark .spring-check--inclusion { --check-fill: #22c55e; }
+.dark .spring-check--exclusion { --check-fill: #ef4444; }
+.dark .spring-check--quality { --check-fill: #3b82f6; }
+.spring-check--compact { width: 16px; height: 16px; margin-top: 0; }
+.spring-check--compact .spring-check__input, .spring-check--compact .spring-check__fill { border-radius: 4px; }
+.spring-check--compact .spring-check__tick { width: 12px; height: 12px; }
+.morph-menu { position: relative; isolation: isolate; z-index: 40; }
+.morph-menu__trigger { position: relative; z-index: 2; width: 100%; height: 40px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: white; }
+.morph-menu__trigger[aria-expanded="true"] { color: rgb(var(--brand-700)); }
+.dark .morph-menu__trigger[aria-expanded="true"] { color: rgb(var(--brand-200)); }
+.morph-menu__surface { position: absolute; inset: 0; border-radius: 8px; background: rgb(var(--brand-600)); pointer-events: none; }
+.morph-menu__trigger:hover .morph-menu__surface { background: rgb(var(--brand-700)); }
+.morph-menu__panel { position: absolute; top: 0; right: 0; width: max(100%, 240px); max-width: calc(100vw - 32px); padding: 45px 4px 4px; transform-origin: top right; }
+.morph-menu__head { position: absolute; top: 0; left: 0; right: 0; height: 41px; display: flex; align-items: center; gap: 6px; padding: 0 44px 0 14px; border-bottom: 1px solid rgb(var(--gray-200)); font-weight: 500; color: rgb(var(--brand-700)); cursor: pointer; }
+.dark .morph-menu__head { color: rgb(var(--brand-200)); border-color: rgb(var(--gray-700)); }
+.morph-menu__surface--open { background: rgb(var(--white)); border: 1px solid rgb(var(--gray-300)); box-shadow: 0 10px 28px #0002; border-radius: 12px; }
+.dark .morph-menu__surface--open { background: rgb(var(--gray-800)); border-color: rgb(var(--gray-600)); }
+.morph-menu__items { position: relative; color: rgb(var(--gray-900)); }
+.dark .morph-menu__items { color: rgb(var(--gray-100)); }
+.morph-menu__items > button { min-height: 44px; border: 0; border-radius: 8px; background: transparent; }
+.morph-menu__items > button:focus-visible { outline-offset: -3px; background: rgb(var(--brand-100)); }
+.dark .morph-menu__items > button:focus-visible { background: rgb(var(--gray-700)); }
+@media (prefers-reduced-motion: reduce) { .morph-menu__trigger svg { transition: none; } }

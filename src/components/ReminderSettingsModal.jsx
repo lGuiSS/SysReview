@@ -56,7 +56,7 @@ export function ReminderSettingsModal({ currentMinutes = 10, onConfirm, onClose 
               onClick={() => handlePreset(min)}
               className={`h-10 rounded-lg text-sm font-medium border transition-colors duration-150
                 ${selected === min
-                  ? "bg-indigo-600 dark:bg-indigo-500 text-white border-indigo-600 dark:border-indigo-500"
+                  ? "bg-brand-600 dark:bg-brand-500 text-white border-brand-600 dark:border-brand-500"
                   : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
                 }`}
             >
@@ -81,7 +81,7 @@ export function ReminderSettingsModal({ currentMinutes = 10, onConfirm, onClose 
               className={`flex-1 h-10 px-3 text-sm rounded-lg border transition-colors
                 bg-white dark:bg-gray-700 text-gray-800 dark:text-white
                 placeholder-gray-400 dark:placeholder-gray-500
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500
                 ${custom && !isValid
                   ? "border-red-400 dark:border-red-500"
                   : "border-gray-300 dark:border-gray-600"
@@ -98,7 +98,7 @@ export function ReminderSettingsModal({ currentMinutes = 10, onConfirm, onClose 
 
         {/* Preview */}
         {isValid && (
-          <p className="text-sm text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg px-4 py-2.5">
+          <p className="text-sm text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-900/30 rounded-lg px-4 py-2.5">
             {t('modals.reminder.preview', { count: effectiveValue })}
           </p>
         )}

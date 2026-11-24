@@ -9,7 +9,7 @@
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: rgb(var(--gray-900));
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -20,6 +20,44 @@
   --pdmain: #1c72c8;
   --pdbase: #999999;
 
+}
+
+/* Tema Papel jornal. Canais RGB para o Tailwind aplicar opacidade (bg-brand-900/30).
+   gray: papel quente nos tons claros, grafite neutro nos escuros.
+   brand: azul de tinta quase preto; 50 e 100 são tons de papel (fundo e seleção). */
+:root {
+  --white: 252 251 248;
+  --gray-50: 247 246 242;
+  --gray-100: 239 238 233;
+  --gray-200: 226 224 217;
+  --gray-300: 205 202 193;
+  --gray-400: 161 158 150;
+  --gray-500: 115 113 107;
+  --gray-600: 91 89 84;
+  --gray-700: 61 62 64;
+  --gray-800: 31 33 36;
+  --gray-900: 22 23 26;
+  --gray-950: 14 15 17;
+  --brand-50: 236 234 228;
+  --brand-100: 227 225 218;
+  --brand-200: 201 209 219;
+  --brand-300: 169 191 216;
+  --brand-400: 143 166 192;
+  --brand-500: 74 95 120;
+  --brand-600: 38 54 74;
+  --brand-700: 31 45 62;
+  --brand-800: 24 35 50;
+  --brand-900: 17 26 38;
+  --brand-950: 10 16 24;
+}
+
+/* No escuro, botões e fundos da marca sobem de tom para não sumir no grafite
+   (texto branco continua acima de 4,5:1) */
+.dark {
+  --brand-600: 59 77 99;
+  --brand-700: 47 63 82;
+  --brand-800: 47 63 82;
+  --brand-900: 59 77 99;
 }
 
 /* Keep the page width stable when a modal locks scrolling. */
@@ -38,8 +76,8 @@ html.dark {
 
 /* Lista aberta do <select> no Windows ignora o color-scheme em alguns navegadores */
 .dark select option {
-  background-color: #374151;
-  color: #f9fafb;
+  background-color: rgb(var(--gray-700));
+  color: rgb(var(--gray-50));
 }
 
 /* Movimento reduzido: sem transições nem animações decorativas; spinners continuam, mais lentos */
@@ -72,24 +110,24 @@ html.dark {
 /* Anel de progresso das etapas da navegação: --p vai de 0 a 1 */
 .step-ring {
   --step-fill: #22c55e;
-  --step-track: #d1d5db;
+  --step-track: rgb(var(--gray-300));
   background: conic-gradient(var(--step-fill) calc(var(--p, 0) * 1turn), var(--step-track) 0);
 }
 
 .dark .step-ring {
   --step-fill: #4ade80;
-  --step-track: #4b5563;
+  --step-track: rgb(var(--gray-600));
 }
 
-/* Etapa ativa: centro com o fundo da etapa, anel índigo sobre trilha índigo clara */
+/* Etapa ativa: centro com o fundo da etapa, anel da marca sobre trilha clara da marca */
 .step-ring.is-active {
-  --step-fill: #4f46e5;
-  --step-track: #c7d2fe;
+  --step-fill: rgb(var(--brand-600));
+  --step-track: rgb(var(--brand-200));
 }
 
 .dark .step-ring.is-active {
-  --step-fill: #a5b4fc;
-  --step-track: #3730a3;
+  --step-fill: rgb(var(--brand-300));
+  --step-track: rgb(var(--brand-800));
 }
 
 html,
@@ -118,18 +156,18 @@ body,
 }
 
 .dark {
-  --chart-axis: #ffffff;
+  --chart-axis: rgb(var(--white));
   --chart-grid: rgba(255, 255, 255, 0.25);
 }
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: rgb(var(--brand-500));
   text-decoration: inherit;
 }
 
 a:hover {
-  color: #535bf2;
+  color: rgb(var(--brand-600));
 }
 
 body {
@@ -157,33 +195,33 @@ button {
 }
 
 button:hover {
-  border-color: #646cff;
+  border-color: rgb(var(--brand-500));
 }
 
 /* Contorno só na navegação por teclado, não ao clicar */
 button:focus-visible {
-  outline: 2px solid #6366f1;
+  outline: 2px solid rgb(var(--brand-500));
   outline-offset: 2px;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    color: rgb(var(--gray-900));
+    background-color: rgb(var(--white));
   }
 
   a:hover {
-    color: #747bff;
+    color: rgb(var(--brand-500));
   }
 
   button {
-    background-color: #f9f9f9;
+    background-color: rgb(var(--gray-50));
   }
 }
 /* Tour guiado (driver.js): mesmo visual dos modais do app */
 .driver-popover.sysreview-tour {
-  background-color: #ffffff;
-  color: #4b5563;
+  background-color: rgb(var(--white));
+  color: rgb(var(--gray-600));
   border-radius: 0.75rem;
   padding: 1rem 1.25rem;
   max-width: min(340px, calc(100vw - 2rem));
@@ -197,7 +235,7 @@ button:focus-visible {
 .driver-popover.sysreview-tour .driver-popover-title {
   font-size: 1rem;
   font-weight: 600;
-  color: #111827;
+  color: rgb(var(--gray-900));
   padding-right: 1.5rem;
 }
 
@@ -215,7 +253,7 @@ button:focus-visible {
 
 .driver-popover.sysreview-tour .driver-popover-progress-text {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: rgb(var(--gray-500));
 }
 
 .driver-popover.sysreview-tour .driver-popover-footer button {
@@ -225,52 +263,52 @@ button:focus-visible {
   padding: 0.375rem 0.75rem;
   border-radius: 0.5rem;
   border: none;
-  background-color: #f3f4f6;
-  color: #4b5563;
+  background-color: rgb(var(--gray-100));
+  color: rgb(var(--gray-600));
 }
 
 .driver-popover.sysreview-tour .driver-popover-footer button:hover,
 .driver-popover.sysreview-tour .driver-popover-footer button:focus-visible {
-  background-color: #e5e7eb;
+  background-color: rgb(var(--gray-200));
 }
 
 .driver-popover.sysreview-tour .driver-popover-footer .driver-popover-next-btn {
-  background-color: #4f46e5;
-  color: #ffffff;
+  background-color: rgb(var(--brand-600));
+  color: rgb(var(--white));
 }
 
 .driver-popover.sysreview-tour .driver-popover-footer .driver-popover-next-btn:hover,
 .driver-popover.sysreview-tour .driver-popover-footer .driver-popover-next-btn:focus-visible {
-  background-color: #4338ca;
+  background-color: rgb(var(--brand-700));
 }
 
 /* O popover recebe foco ao abrir: sem o contorno global de button:focus,
-   com anel indigo só na navegação por teclado */
+   com anel da marca só na navegação por teclado */
 .driver-popover.sysreview-tour button:focus {
   outline: none;
 }
 
 .driver-popover.sysreview-tour .driver-popover-footer button:focus-visible {
-  outline: 2px solid #6366f1;
+  outline: 2px solid rgb(var(--brand-500));
   outline-offset: 2px;
 }
 
 .driver-popover.sysreview-tour .driver-popover-close-btn {
-  color: #9ca3af;
+  color: rgb(var(--gray-400));
 }
 
 .driver-popover.sysreview-tour .driver-popover-close-btn:hover,
 .driver-popover.sysreview-tour .driver-popover-close-btn:focus-visible {
-  color: #4b5563;
+  color: rgb(var(--gray-600));
 }
 
 .dark .driver-popover.sysreview-tour {
-  background-color: #1f2937;
-  color: #d1d5db;
+  background-color: rgb(var(--gray-800));
+  color: rgb(var(--gray-300));
 }
 
 .dark .driver-popover.sysreview-tour .driver-popover-title {
-  color: #ffffff;
+  color: rgb(var(--white));
 }
 
 .dark .driver-popover.sysreview-tour .sysreview-tour-hint {
@@ -278,27 +316,27 @@ button:focus-visible {
 }
 
 .dark .driver-popover.sysreview-tour .driver-popover-progress-text {
-  color: #9ca3af;
+  color: rgb(var(--gray-400));
 }
 
 .dark .driver-popover.sysreview-tour .driver-popover-footer button {
-  background-color: #374151;
-  color: #d1d5db;
+  background-color: rgb(var(--gray-700));
+  color: rgb(var(--gray-300));
 }
 
 .dark .driver-popover.sysreview-tour .driver-popover-footer button:hover,
 .dark .driver-popover.sysreview-tour .driver-popover-footer button:focus-visible {
-  background-color: #4b5563;
+  background-color: rgb(var(--gray-600));
 }
 
 .dark .driver-popover.sysreview-tour .driver-popover-footer .driver-popover-next-btn {
-  background-color: #6366f1;
-  color: #ffffff;
+  background-color: rgb(var(--brand-500));
+  color: rgb(var(--white));
 }
 
 .dark .driver-popover.sysreview-tour .driver-popover-close-btn:hover,
 .dark .driver-popover.sysreview-tour .driver-popover-close-btn:focus-visible {
-  color: #d1d5db;
+  color: rgb(var(--gray-300));
 }
 
 /* Seta do popover no tema escuro: só o lado visível recebe a cor do fundo */
@@ -307,25 +345,25 @@ button:focus-visible {
 }
 
 .dark .driver-popover.sysreview-tour .driver-popover-arrow-side-left {
-  border-left-color: #1f2937;
+  border-left-color: rgb(var(--gray-800));
 }
 
 .dark .driver-popover.sysreview-tour .driver-popover-arrow-side-right {
-  border-right-color: #1f2937;
+  border-right-color: rgb(var(--gray-800));
 }
 
 .dark .driver-popover.sysreview-tour .driver-popover-arrow-side-top {
-  border-top-color: #1f2937;
+  border-top-color: rgb(var(--gray-800));
 }
 
 .dark .driver-popover.sysreview-tour .driver-popover-arrow-side-bottom {
-  border-bottom-color: #1f2937;
+  border-bottom-color: rgb(var(--gray-800));
 }
 
 /* Toque: sem atraso de duplo toque e destaque discreto (o foco visível vem do :focus-visible) */
 html {
   touch-action: manipulation;
-  -webkit-tap-highlight-color: rgba(79, 70, 229, 0.15);
+  -webkit-tap-highlight-color: rgb(var(--brand-600) / 0.15);
 }
 
 /* Rolagem dentro de diálogos não arrasta a página por trás */

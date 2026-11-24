@@ -1,3 +1,4 @@
+import { AnimatePresence } from 'motion/react';
 import { Modal } from './Modal.jsx';
 import { BUTTON } from './buttons.js';
 import { useFormat } from '../i18n/format.js';
@@ -30,7 +31,7 @@ export function ApplicationRulesSummary({ rule, onEditRules }) {
   const { t, i18n } = useTranslation();
   if (!rule) return null;
   const percent = value => new Intl.NumberFormat(i18n.language).format(value);
-  return <section aria-label={t('assist.currentRules')} className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/30 p-3 space-y-2">
+  return <section aria-label={t('assist.currentRules')} className="rounded-xl border border-brand-200 dark:border-brand-800 bg-brand-50 dark:bg-brand-950/30 p-3 space-y-2">
     <h3 className="font-semibold">{t('assist.currentRules')}</h3>
     {rule.mode === 'inclusive' ? <ul className="space-y-1">
       <li>{t('assist.summaryInclude', { value: percent(rule.includeAt) })}</li>
@@ -41,7 +42,11 @@ export function ApplicationRulesSummary({ rule, onEditRules }) {
   </section>;
 }
 
-export function JevBatchModal({ job, controller, rule, onEditRules }) {
+export function JevBatchModal(props) {
+  return <AnimatePresence>{props.job && <JevBatchContent key={props.job.minimized ? 'minimized' : 'dialog'} {...props} />}</AnimatePresence>;
+}
+
+function JevBatchContent({ job, controller, rule, onEditRules }) {
   const { t } = useTranslation();
   const fmt = useFormat();
   if (!job) return null;
@@ -56,12 +61,12 @@ export function JevBatchModal({ job, controller, rule, onEditRules }) {
     <p role="status" aria-live="polite">{progress} · {t(`assist.jobPhase.${job.phase}`)}</p>
     <div role="progressbar" aria-label={t('assist.progress')} aria-valuemin={0} aria-valuenow={job.processed} aria-valuemax={Math.max(1, job.total)}
       className="w-full h-3 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
-      <div className="h-full rounded-full bg-indigo-500 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${Math.min(100, Math.max(0, job.processed / Math.max(1, job.total) * 100))}%` }} />
+      <div className="h-full rounded-full bg-brand-500 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${Math.min(100, Math.max(0, job.processed / Math.max(1, job.total) * 100))}%` }} />
     </div>
   </>;
   if (job.minimized) return <>
     <div className="h-44 sm:h-32" aria-hidden="true" />
-    <aside aria-label={title} className="fixed bottom-3 left-3 right-3 sm:left-auto sm:w-[30rem] z-40 rounded-xl border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shadow-xl p-3 text-sm space-y-1">
+    <aside aria-label={title} className="fixed bottom-3 left-3 right-3 sm:left-auto sm:w-[30rem] z-40 rounded-xl border border-brand-300 dark:border-brand-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shadow-xl p-3 text-sm space-y-1">
       <p className="font-semibold">{title}</p>{details}
       {job.counts.error > 0 && <p className="text-red-600 dark:text-red-300">{t('assist.batchErrors', { count: job.counts.error })}</p>}
       <div className="flex flex-wrap gap-2 justify-end">

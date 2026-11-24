@@ -130,7 +130,7 @@ export function SupportModal({ onConfirm, onClose }) {
               onFocus={(e) => e.target.select()}
               className="flex-1 min-w-0 h-10 px-3 text-sm rounded-lg border truncate
                 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300
-                border-gray-300 dark:border-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                border-gray-300 dark:border-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
             />
             <button
               type="button"

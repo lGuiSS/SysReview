@@ -2,21 +2,26 @@ import { useTranslation } from 'react-i18next';
 import { Info, Sparkles, ShieldCheck, Workflow, User, Link } from "lucide-react";
 import { APP_VERSION } from "../fileSystem.js";
 import authorPhoto from "../assets/author.jpg";
+import SpotlightCard from './motion/SpotlightCard.jsx';
 
 const LATTES_URL = "http://lattes.cnpq.br/8653086621957741";
 
-const Card = ({ icon, title, children }) => {
+const Card = ({ icon, title, children, theme }) => {
   const Icon = icon;
   return (
-    <div className="bg-gray-100 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl p-4 sm:p-5">
+    <SpotlightCard className="spotlight-card--about" theme={theme}
+      spotlightColor={theme === 'dark' ? '#818cf8' : '#6366f1'}
+      intensity={theme === 'dark' ? 0.16 : 0.35} spotlightSize={260}
+      borderGlow={0.55} proximity={48} smoothing={0.2} flare={false}
+      style={{ '--spotlight-card-surface': 'var(--about-card-surface)', '--spotlight-card-border': 'var(--about-card-border)', '--spotlight-card-shadow': 'none' }}>
       <h3 className="text-sm sm:text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-        <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+        <Icon className="h-5 w-5 text-brand-600 dark:text-brand-400" />
         {title}
       </h3>
       <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed space-y-2">
         {children}
       </div>
-    </div>
+    </SpotlightCard>
   );
 };
 
@@ -29,7 +34,7 @@ const List = ({ items, ordered = false }) => {
   );
 };
 
-const AboutSection = () => {
+const AboutSection = ({ theme = 'light' }) => {
   const { t } = useTranslation();
   const asList = (key) => {
     const value = t(key, { returnObjects: true });
@@ -47,27 +52,27 @@ const AboutSection = () => {
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card icon={Info} title={t('about.whatTitle')}>
+        <Card theme={theme} icon={Info} title={t('about.whatTitle')}>
           <p>{t('about.whatText')}</p>
           <List items={asList('about.features')} />
         </Card>
 
-        <Card icon={Workflow} title={t('about.workflowTitle')}>
+        <Card theme={theme} icon={Workflow} title={t('about.workflowTitle')}>
           <List ordered items={asList('about.workflow')} />
         </Card>
 
-        <Card icon={ShieldCheck} title={t('about.privacyTitle')}>
+        <Card theme={theme} icon={ShieldCheck} title={t('about.privacyTitle')}>
           <List items={asList('about.privacy')} />
         </Card>
 
-        <Card icon={Sparkles} title={t('about.assistTitle')}>
+        <Card theme={theme} icon={Sparkles} title={t('about.assistTitle')}>
           <p>{t('about.assistText')}</p>
           <List items={asList('about.assistStages')} />
           <p>{t('about.assistDecision')}</p>
           <p>{t('about.assistCost')}</p>
         </Card>
 
-        <Card icon={User} title={t('about.authorTitle')}>
+        <Card theme={theme} icon={User} title={t('about.authorTitle')}>
           <div className="flex items-center gap-4">
             <img
               src={authorPhoto}
@@ -83,7 +88,7 @@ const AboutSection = () => {
                 href={LATTES_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline"
+                className="inline-flex items-center gap-1 text-brand-600 dark:text-brand-400 hover:underline"
               >
                 <Link size={14} />
                 {t('about.lattes')}
@@ -93,7 +98,7 @@ const AboutSection = () => {
           <p className="pt-2">{t('about.authorBio')}</p>
         </Card>
 
-        <Card icon={Info} title={t('about.techTitle')}>
+        <Card theme={theme} icon={Info} title={t('about.techTitle')}>
           <p>{t('about.techText')}</p>
         </Card>
       </div>

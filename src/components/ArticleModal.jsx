@@ -1,3 +1,6 @@
+import { useReducedMotion } from 'motion/react';
+import RubberSegmentGroup from './motion/RubberSegmentGroup.jsx';
+import { TooltipButton, WarmTooltipGroup } from './motion/WarmTooltip.jsx';
 // ArticleModal.jsx - Detalhe do artigo: estilos Abas, Lado a lado, Leitura e Contínuo; critérios e extração no próprio modal,
 // confirmação no rodapé, atalhos de teclado e lista de decisões para desfazer
 
@@ -88,6 +91,9 @@ const ArticleModal = ({
   assist = null,
 }) => {
   const { t } = useTranslation();
+  const reduced = useReducedMotion();
+  const closeTimer = useRef(null);
+  const closing = useRef(false);
   const [visible,    setVisible]    = useState(false);
   const [translateY, setTranslateY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -174,7 +180,7 @@ const ArticleModal = ({
       return { id: c.id, label: t(c.label), icon: c.icon, iconCls: c.iconCls, badge: count ? { text: count, cls: c.badge } : null };
     }) : []),
     ...(hasExtraction ? [{ id: 'extraction', label: t('articleView.tabExtraction'), icon: ClipboardList, iconCls: 'text-orange-600 dark:text-orange-400', badge: { text: `${answered}/${visibleExtraction.length}`, cls: 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200' } }] : []),
-    ...(assist && !isProcessing ? [{ id: 'ai', label: t('articleView.tabAi'), icon: Sparkles, iconCls: 'text-indigo-500 dark:text-indigo-400' }] : []),
+    ...(assist && !isProcessing ? [{ id: 'ai', label: t('articleView.tabAi'), icon: Sparkles, iconCls: 'text-brand-500 dark:text-brand-400' }] : []),
   ];
   // Estilo: Lado a lado vira Abas em telas estreitas
   const isWide = useMediaQuery('(min-width: 1024px)');
@@ -293,16 +299,19 @@ const ArticleModal = ({
     const frame = requestAnimationFrame(() => setVisible(true));
     return () => {
       cancelAnimationFrame(frame);
+      clearTimeout(closeTimer.current);
       document.body.style.overflow = previousOverflow;
     };
   }, []);
 
   const closeWithAnimation = useCallback(() => {
+    if (closing.current) return;
+    closing.current = true;
     commitExtraction();
     setVisible(false);
-    setTranslateY(window.innerHeight);
-    setTimeout(onClose, 300);
-  }, [onClose, commitExtraction]);
+    if (window.innerWidth < 640 && !reduced) setTranslateY(window.innerHeight);
+    closeTimer.current = setTimeout(onClose, reduced ? 0 : 150);
+  }, [onClose, commitExtraction, reduced]);
 
   const onHandleTouchStart = (e) => {
     dragStartY.current = e.touches[0].clientY;
@@ -329,12 +338,10 @@ const ArticleModal = ({
   };
 
   const sheetStyle = {
-    transform:  `translateY(${translateY}px)`,
-    transition: isDragging
-      ? 'none'
-      : visible
-        ? 'transform 0.35s cubic-bezier(0.32,0.72,0,1)'
-        : 'transform 0.28s ease-in',
+    transform: reduced ? 'none' : window.innerWidth < 640
+      ? `translateY(${translateY}px)` : `scale(${visible ? 1 : 0.96})`,
+    transition: isDragging || reduced ? 'none' : `transform ${visible ? 250 : 150}ms cubic-bezier(.22,1,.36,1)`,
+    pointerEvents: closing.current ? 'none' : undefined,
   };
 
   const articlesById = useMemo(() => new Map(allArticles.map(a => [a.id, a])), [allArticles]);
@@ -374,12 +381,13 @@ const ArticleModal = ({
 
 
   const tabList = (
-    <div role="tablist" aria-label={t('articleView.sections')} className={`flex-shrink-0 flex gap-x-1 px-2 sm:px-4 border-b border-gray-200 dark:border-gray-700 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${layout === 'split' ? 'flex-wrap' : 'mt-3 overflow-x-auto overflow-y-hidden overscroll-x-contain'} ${layout === 'reading' ? 'justify-center' : ''}`}>
+    <RubberSegmentGroup value={activeTab}><div role="tablist" aria-label={t('articleView.sections')} className={`flex-shrink-0 flex gap-1 px-2 sm:px-4 py-1 border-b border-gray-200 dark:border-gray-700 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${layout === 'split' ? 'flex-wrap' : 'mt-3 overflow-x-auto overflow-y-hidden overscroll-x-contain'} ${layout === 'reading' ? 'justify-center' : ''}`}>
       {visibleTabs.map((x, index) => {
         const selectedTab = x.id === activeTab;
         return (
-          <button
+          <TooltipButton
             key={x.id}
+            data-rubber-item=""
             id={`article-tab-${x.id}`}
             type="button"
             role="tab"
@@ -388,18 +396,18 @@ const ArticleModal = ({
             tabIndex={selectedTab ? 0 : -1}
             onClick={() => selectTab(x.id)}
             title={`${x.label} (${index + 1})`}
-            className={`shrink-0 inline-flex items-center gap-1.5 h-11 px-3 -mb-px border-0 border-b-2 rounded-none bg-transparent text-sm whitespace-nowrap transition-colors ${selectedTab
-              ? 'border-indigo-500 text-gray-900 dark:text-white font-semibold'
-              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-500'}`}
+            className={`relative shrink-0 inline-flex items-center gap-1.5 h-11 px-3 border-0 rounded-lg bg-transparent text-sm whitespace-nowrap transition-colors ${selectedTab
+              ? 'text-gray-900 dark:text-white font-semibold'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
           >
-            {x.icon && <x.icon className={`h-4 w-4 shrink-0 ${x.iconCls ?? (selectedTab ? 'text-indigo-600 dark:text-indigo-300' : 'text-gray-400 dark:text-gray-500')}`} aria-hidden="true" />}
+            {x.icon && <x.icon className={`h-4 w-4 shrink-0 ${x.iconCls ?? (selectedTab ? 'text-brand-600 dark:text-brand-300' : 'text-gray-400 dark:text-gray-500')}`} aria-hidden="true" />}
             {x.label}
             {x.badge && <span className={`px-1.5 rounded-full text-[11px] font-semibold tabular-nums ${x.badge.cls}`}>{x.badge.text}</span>}
             <Kbd>{index + 1}</Kbd>
-          </button>
+          </TooltipButton>
         );
       })}
-    </div>
+    </div></RubberSegmentGroup>
   );
   const tabPanelProps = { role: 'tabpanel', id: 'article-tabpanel', 'aria-labelledby': `article-tab-${activeTab}` };
 
@@ -408,12 +416,13 @@ const ArticleModal = ({
     : { bar: 'border-red-500 bg-red-50 dark:bg-red-900/25', icon: XCircle, iconCls: 'text-red-600 dark:text-red-400', btn: BUTTON.danger };
 
   return (
-    <div
+    <WarmTooltipGroup><div
       className={`${MODAL_BACKDROP} z-50`}
       onClick={() => closeWithAnimation()}
-      style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.3s ease' }}
+      style={{ opacity: visible ? 1 : 0, transition: reduced ? 'none' : `opacity ${visible ? 250 : 150}ms ease` }}
     >
       <DialogPanel
+        animatePanel={false}
         ref={panelRef}
         onClose={closeWithAnimation}
         labelledBy="article-modal-title"
@@ -431,43 +440,43 @@ const ArticleModal = ({
             onTouchMove={onHandleTouchMove}
             onTouchEnd={onHandleTouchEnd}
           >
-            <div className={`h-1 rounded-full transition-[width,background-color] duration-150 motion-reduce:transition-none ${isDragging ? 'w-[52px] bg-indigo-500' : 'w-10 bg-gray-300 dark:bg-gray-600'}`} />
+            <div className={`h-1 rounded-full transition-[width,background-color] duration-150 motion-reduce:transition-none ${isDragging ? 'w-[52px] bg-brand-500' : 'w-10 bg-gray-300 dark:bg-gray-600'}`} />
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2">
             <span className="hidden md:inline text-sm font-semibold text-gray-900 dark:text-white">{stageLabel}</span>
             <span aria-hidden="true" className="hidden md:inline text-gray-400">/</span>
-            <button type="button" onClick={goPrevious} disabled={currentArticle === 0} aria-label={t('modals.article.previous')} title={t('modals.article.previous')} className={`${ICON_BUTTON} disabled:opacity-30 disabled:hover:bg-transparent`}>
+            <TooltipButton type="button" onClick={goPrevious} disabled={currentArticle === 0} aria-label={t('modals.article.previous')} title={t('modals.article.previous')} className={`${ICON_BUTTON} disabled:opacity-30 disabled:hover:bg-transparent`}>
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-            </button>
+            </TooltipButton>
             <span className="text-sm text-gray-900 dark:text-white tabular-nums whitespace-nowrap">
               <span className="sm:hidden" aria-hidden="true">{currentArticle + 1}/{totalArticles}</span>
               <span className="max-sm:sr-only">{t('articleView.position', { n: currentArticle + 1, total: totalArticles })}</span>
             </span>
-            <button type="button" onClick={goNext} disabled={currentArticle >= totalArticles - 1} aria-label={t('modals.article.next')} title={t('modals.article.next')} className={`${ICON_BUTTON} disabled:opacity-30 disabled:hover:bg-transparent`}>
+            <TooltipButton type="button" onClick={goNext} disabled={currentArticle >= totalArticles - 1} aria-label={t('modals.article.next')} title={t('modals.article.next')} className={`${ICON_BUTTON} disabled:opacity-30 disabled:hover:bg-transparent`}>
               <ChevronRight className="h-5 w-5" aria-hidden="true" />
-            </button>
+            </TooltipButton>
 
             <div className="flex-1" />
             <StatusBadge status={status} />
 
             <div className="relative" ref={decisionsRef}>
-              <button type="button" onClick={() => setOpenMenu(openMenu === 'decisions' ? null : 'decisions')} aria-expanded={openMenu === 'decisions'} title={t('articleView.decisions')}
-                className={`inline-flex items-center gap-1.5 h-10 px-2.5 rounded-lg border-none text-sm transition-colors ${openMenu === 'decisions' ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200' : 'bg-transparent text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+              <TooltipButton type="button" onClick={() => setOpenMenu(openMenu === 'decisions' ? null : 'decisions')} aria-expanded={openMenu === 'decisions'} title={t('articleView.decisions')}
+                className={`inline-flex items-center gap-1.5 h-10 px-2.5 rounded-lg border-none text-sm transition-colors ${openMenu === 'decisions' ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200' : 'bg-transparent text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
                 <Undo2 className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">{t('articleView.decisions')}</span>
-                {pendingUndo > 0 && <span className="min-w-[1.25rem] px-1.5 rounded-full bg-indigo-600 text-white text-xs tabular-nums">{pendingUndo}</span>}
-              </button>
+                {pendingUndo > 0 && <span className="min-w-[1.25rem] px-1.5 rounded-full bg-brand-600 text-white text-xs tabular-nums">{pendingUndo}</span>}
+              </TooltipButton>
               <Popover open={openMenu === 'decisions'} onClose={() => setOpenMenu(null)} label={t('articleView.decisions')} anchorRef={decisionsRef}>
                 <DecisionsMenu entries={decisionHistory} articlesById={articlesById} onUndo={onUndoDecision} onOpen={(a) => { setOpenMenu(null); onOpenArticle?.(a); }} />
               </Popover>
             </div>
 
             <div className="relative" ref={appearanceRef}>
-              <button type="button" onClick={() => setOpenMenu(openMenu === 'appearance' ? null : 'appearance')} aria-expanded={openMenu === 'appearance'} aria-label={t('articleView.appearance')} title={t('articleView.appearance')}
-                className={`${ICON_BUTTON} ${openMenu === 'appearance' ? '!bg-indigo-50 !text-indigo-700 dark:!bg-indigo-900/40 dark:!text-indigo-200' : ''}`}>
+              <TooltipButton type="button" onClick={() => setOpenMenu(openMenu === 'appearance' ? null : 'appearance')} aria-expanded={openMenu === 'appearance'} aria-label={t('articleView.appearance')} title={t('articleView.appearance')}
+                className={`${ICON_BUTTON} ${openMenu === 'appearance' ? '!bg-brand-50 !text-brand-700 dark:!bg-brand-900/40 dark:!text-brand-200' : ''}`}>
                 <LayoutTemplate className="h-5 w-5" aria-hidden="true" />
-              </button>
+              </TooltipButton>
               <Popover open={openMenu === 'appearance'} onClose={() => setOpenMenu(null)} label={t('articleView.appearance')} anchorRef={appearanceRef}>
                 <AppearanceMenu view={view} onChange={setView} />
               </Popover>
@@ -478,7 +487,7 @@ const ArticleModal = ({
             </button>
           </div>
           <div className="h-0.5 bg-gray-100 dark:bg-gray-700" aria-hidden="true">
-            <div className="h-full bg-indigo-500 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${progress}%` }} />
+            <div className="h-full bg-brand-500 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${progress}%` }} />
           </div>
         </div>
 
@@ -596,11 +605,11 @@ const ArticleModal = ({
                       : t(`decisionUndo.${feedback.state}`)}
                   </span>
                   {feedback.state === 'available' && canUndoDecision(feedback, articlesById.get(feedback.articleId)) && (
-                    <button type="button" onClick={() => onUndoDecision?.(feedback.id)} title={t('decisionUndo.shortcut')}
+                    <TooltipButton type="button" onClick={() => onUndoDecision?.(feedback.id)} title={t('decisionUndo.shortcut')}
                       className="shrink-0 inline-flex items-center gap-1 h-7 px-2 rounded-md border-none bg-transparent font-semibold underline-offset-2 hover:underline hover:bg-black/5 dark:hover:bg-white/10">
                       <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />
                       {t('decisionUndo.undo')}
-                    </button>
+                    </TooltipButton>
                   )}
                 </div>
               );
@@ -609,19 +618,19 @@ const ArticleModal = ({
             )}
             <div className="hidden sm:flex flex-1" />
             <div className="grid grid-cols-2 sm:flex gap-2">
-              <button type="button" onClick={goPrevious} disabled={currentArticle === 0} aria-keyshortcuts="ArrowLeft" title={`${t('articleView.previous')} (←)`} className={BUTTON.secondary}>
+              <TooltipButton type="button" onClick={goPrevious} disabled={currentArticle === 0} aria-keyshortcuts="ArrowLeft" title={`${t('articleView.previous')} (←)`} className={BUTTON.secondary}>
                 <ArrowLeft className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
                 {t('articleView.previous')}
-              </button>
-              <button type="button" onClick={goNext} disabled={currentArticle >= totalArticles - 1} aria-keyshortcuts="ArrowRight" title={`${t('articleView.next')} (→)`} className={BUTTON.secondary}>
+              </TooltipButton>
+              <TooltipButton type="button" onClick={goNext} disabled={currentArticle >= totalArticles - 1} aria-keyshortcuts="ArrowRight" title={`${t('articleView.next')} (→)`} className={BUTTON.secondary}>
                 {t('articleView.next')}
                 <ArrowRight className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
-              </button>
+              </TooltipButton>
             </div>
           </div>
         )}
       </DialogPanel>
-    </div>
+    </div></WarmTooltipGroup>
   );
 };
 

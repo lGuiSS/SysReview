@@ -1,4 +1,6 @@
 import { forwardRef, useEffect, useRef } from 'react';
+import { motion as Motion, useIsPresent, useReducedMotion } from 'motion/react';
+import { panelMotion } from './motion/transitions.js';
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -6,7 +8,7 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([t
 const stack = [];
 
 const focusableIn = (node) => [...node.querySelectorAll(FOCUSABLE)]
-  .filter(el => el.offsetParent !== null || el === document.activeElement);
+  .filter(el => !el.closest('[inert]') && (el.offsetParent !== null || el === document.activeElement));
 
 /**
  * Painel de diálogo modal: role="dialog", aria-modal, Esc fecha, Tab fica preso
@@ -14,9 +16,11 @@ const focusableIn = (node) => [...node.querySelectorAll(FOCUSABLE)]
  * Substitui a <div> do painel; o overlay continua com cada modal.
  */
 export const DialogPanel = forwardRef(function DialogPanel(
-  { onClose, labelledBy, label, role = 'dialog', closeOnEscape = true, fallbackFocus, focusPanel = false, className = '', children, ...props },
+  { onClose, labelledBy, label, role = 'dialog', closeOnEscape = true, fallbackFocus, focusPanel = false, animatePanel = true, className = '', children, ...props },
   forwardedRef
 ) {
+  const present = useIsPresent();
+  const reduced = useReducedMotion();
   const panelRef = useRef(null);
   const closeRef = useRef(onClose);
   useEffect(() => { closeRef.current = onClose; }, [onClose]);
@@ -30,6 +34,7 @@ export const DialogPanel = forwardRef(function DialogPanel(
   };
 
   useEffect(() => {
+    if (!present) return;
     const panel = panelRef.current;
     const opener = document.activeElement;
     stack.push(panel);
@@ -66,16 +71,19 @@ export const DialogPanel = forwardRef(function DialogPanel(
       document.removeEventListener('keydown', onKeyDown, true);
       const index = stack.lastIndexOf(panel);
       if (index !== -1) stack.splice(index, 1);
-      if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true });
+      if (opener instanceof HTMLElement && opener.isConnected && (!stack.length || stack[stack.length - 1]?.contains(opener))) opener.focus({ preventScroll: true });
       else if (fallbackRef.current) queueMicrotask(() => fallbackRef.current()?.focus());
     };
-  }, [closeOnEscape]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [closeOnEscape, present]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div
+    <Motion.div
+      {...(animatePanel ? panelMotion(reduced) : {})}
       ref={setRef}
       role={role}
       aria-modal="true"
+      aria-hidden={!present || undefined}
+      inert={!present}
       aria-labelledby={labelledBy}
       aria-label={labelledBy ? undefined : label}
       tabIndex={-1}
@@ -83,7 +91,7 @@ export const DialogPanel = forwardRef(function DialogPanel(
       {...props}
     >
       {children}
-    </div>
+    </Motion.div>
   );
 });
 

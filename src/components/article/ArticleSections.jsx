@@ -1,3 +1,4 @@
+import SpringCheck from '../motion/SpringCheck.jsx';
 // ArticleSections.jsx - Conteúdo do detalhe do artigo, compartilhado pelos estilos Abas e Clássico
 
 import { useTranslation } from 'react-i18next';
@@ -7,7 +8,7 @@ import { STATUS_BADGES, TEXT_SIZES, isExtractionAnswered } from './articleView.j
 
 const MARKS = {
   yellow: 'bg-yellow-200 text-gray-900 dark:bg-yellow-400/30 dark:text-yellow-50',
-  indigo: 'bg-indigo-200 text-indigo-950 dark:bg-indigo-500/40 dark:text-indigo-50',
+  indigo: 'bg-brand-200 text-brand-950 dark:bg-brand-500/40 dark:text-brand-50',
 };
 
 export const StatusBadge = ({ status }) => {
@@ -32,12 +33,12 @@ export const HighlightButton = ({ enabled, count, onToggle, compact = false }) =
       onClick={onToggle}
       title={t('articleView.highlight')}
       className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border text-sm font-medium whitespace-nowrap transition-colors ${enabled
-        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200'
+        ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200'
         : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
     >
       <Highlighter className="h-4 w-4" aria-hidden="true" />
       <span className={compact ? 'sr-only sm:not-sr-only' : ''}>{t('articleView.highlight')}</span>
-      {enabled && <span className="min-w-[1.25rem] px-1.5 rounded-full bg-indigo-600 text-white text-xs tabular-nums">{count}</span>}
+      {enabled && <span className="min-w-[1.25rem] px-1.5 rounded-full bg-brand-600 text-white text-xs tabular-nums">{count}</span>}
     </button>
   );
 };
@@ -56,7 +57,7 @@ export const TextSizeControl = ({ value, onChange }) => {
           aria-label={t(`articleView.textSize_${size}`)}
           onClick={() => onChange(size)}
           className={`w-8 h-full p-0 rounded-md border-none font-semibold leading-none transition-colors ${cls} ${value === size
-            ? 'bg-indigo-600 text-white'
+            ? 'bg-brand-600 text-white'
             : 'bg-transparent text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
         >
           A
@@ -70,7 +71,7 @@ const DoiLink = ({ doi }) => {
   const { t } = useTranslation();
   if (!doi) return <span>{t('modals.article.notIdentified')}</span>;
   return (
-    <a href={`https://doi.org/${doi}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline break-all">
+    <a href={`https://doi.org/${doi}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand-600 dark:text-brand-400 hover:underline break-all">
       <Link size={12} aria-hidden="true" />{doi}
     </a>
   );
@@ -129,7 +130,7 @@ export function SummaryPanel({ article, terms, match, view, onToggleHighlight, o
           <SectionTitle icon={Tag}>{t('modals.article.keywords').replace(/:$/, '')}</SectionTitle>
           <ul className="flex flex-wrap gap-1.5">
             {article.keywords.map((kw, i) => (
-              <li key={i} className="px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-sm rounded-full">{hl(kw)}</li>
+              <li key={i} className="px-2.5 py-0.5 bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 text-sm rounded-full">{hl(kw)}</li>
             ))}
           </ul>
         </div>
@@ -221,7 +222,7 @@ export function DetailsPanel({ article, allArticles, terms, match, stacked = fal
           <SectionTitle>{t('articleView.scoreTerms', { score: article.score ?? 0 })}</SectionTitle>
           {found.length + missing.length === 0 ? <p className="text-sm text-gray-500 dark:text-gray-400">{t('articleView.noTerms')}</p> : <>
             <ul className="flex flex-wrap gap-1.5">
-              {found.map(term => <li key={term} className="px-2 py-0.5 rounded-md text-xs bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-100">{term}</li>)}
+              {found.map(term => <li key={term} className="px-2 py-0.5 rounded-md text-xs bg-brand-100 text-brand-800 dark:bg-brand-900/60 dark:text-brand-100">{term}</li>)}
               {missing.map(term => <li key={term} className="px-2 py-0.5 rounded-md text-xs border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400">{term}</li>)}
             </ul>
           </>}
@@ -236,47 +237,36 @@ const CRITERIA_STYLES = {
   inclusion: {
     code: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200',
     checked: 'has-[:checked]:border-green-500 has-[:checked]:bg-green-50/70 dark:has-[:checked]:border-green-600 dark:has-[:checked]:bg-green-900/20',
-    box: 'checked:bg-green-600 checked:border-green-600 dark:checked:bg-green-500 dark:checked:border-green-500',
   },
   exclusion: {
     code: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200',
     checked: 'has-[:checked]:border-red-500 has-[:checked]:bg-red-50/70 dark:has-[:checked]:border-red-600 dark:has-[:checked]:bg-red-900/20',
-    box: 'checked:bg-red-600 checked:border-red-600 dark:checked:bg-red-500 dark:checked:border-red-500',
   },
   quality: {
     code: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200',
     checked: 'has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50/70 dark:has-[:checked]:border-blue-600 dark:has-[:checked]:bg-blue-900/20',
-    box: 'checked:bg-blue-600 checked:border-blue-600 dark:checked:bg-blue-500 dark:checked:border-blue-500',
   },
 };
 
 // Caixa de seleção própria: quadrado arredondado com ✓ branco na cor da categoria
-const CheckBox = ({ checked, onChange, tone }) => (
-  <span className="relative grid place-items-center shrink-0 h-5 w-5 mt-0.5">
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      className={`peer appearance-none m-0 p-0 h-5 w-5 rounded-md border-2 border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-800 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 ${tone}`}
-    />
-    <Check aria-hidden="true" strokeWidth={3} className="pointer-events-none absolute h-3.5 w-3.5 text-white opacity-0 scale-75 transition peer-checked:opacity-100 peer-checked:scale-100 motion-reduce:transition-none" />
-  </span>
+const CheckBox = ({ checked, onChange, category }) => (
+  <SpringCheck checked={checked} onChange={onChange} strike="none" className={`spring-check--${category}`} />
 );
 
 // Marcador das opções de extração: quadrado com ✓ (várias) ou círculo com ponto (uma)
 const ChoiceMark = ({ many, checked, onChange, name, value }) => (
+  many ? <SpringCheck checked={checked} onChange={onChange} name={name} value={value}
+    strike="none" className="spring-check--compact" /> :
   <span className="relative grid place-items-center shrink-0 h-4 w-4">
     <input
-      type={many ? 'checkbox' : 'radio'}
+      type="radio"
       name={name}
       value={value}
       checked={checked}
       onChange={onChange}
-      className={`peer appearance-none m-0 p-0 h-4 w-4 border-2 border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-800 cursor-pointer transition-colors focus:outline-none checked:border-indigo-600 dark:checked:border-indigo-400 ${many ? 'rounded checked:bg-indigo-600 dark:checked:bg-indigo-500' : 'rounded-full'}`}
+      className="peer appearance-none m-0 p-0 h-4 w-4 rounded-full border-2 border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-800 cursor-pointer transition-colors focus:outline-none checked:border-brand-600 dark:checked:border-brand-400"
     />
-    {many
-      ? <Check aria-hidden="true" strokeWidth={3.5} className="pointer-events-none absolute h-3 w-3 text-white opacity-0 peer-checked:opacity-100" />
-      : <span aria-hidden="true" className="pointer-events-none absolute h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-400 opacity-0 peer-checked:opacity-100" />}
+    <span aria-hidden="true" className="pointer-events-none absolute h-2 w-2 rounded-full bg-brand-600 dark:bg-brand-400 opacity-0 peer-checked:opacity-100" />
   </span>
 );
 
@@ -290,7 +280,7 @@ export function CriteriaPanel({ category, options, selected, onToggle, showHint 
         {options.map(option => (
           <li key={option.id}>
             <label className={`flex items-start gap-3 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/40 ${style.checked}`}>
-              <CheckBox checked={selected.some(s => s.id === option.id)} onChange={() => onToggle(option)} tone={style.box} />
+              <CheckBox checked={selected.some(s => s.id === option.id)} onChange={() => onToggle(option)} category={category} />
               <span className={`shrink-0 min-w-[2.25rem] px-1.5 py-0.5 rounded-md text-center text-xs font-bold tabular-nums ${style.code}`}>{option.id}</span>
               <span className={`flex-1 leading-relaxed text-gray-900 dark:text-white ${(TEXT_SIZES[textSize] ?? TEXT_SIZES.normal).item}`}>{option.label}</span>
             </label>
@@ -302,7 +292,7 @@ export function CriteriaPanel({ category, options, selected, onToggle, showHint 
 }
 
 // ── Extração ─────────────────────────────────────────────────────────────────
-const optionTile = 'inline-flex items-center gap-2 h-8 px-3 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 cursor-pointer select-none transition-colors touch-manipulation hover:border-indigo-400 hover:bg-indigo-50/60 dark:hover:border-indigo-500 dark:hover:bg-indigo-900/20 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 dark:has-[:checked]:border-indigo-400 dark:has-[:checked]:bg-indigo-900/30 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500';
+const optionTile = 'inline-flex items-center gap-2 h-8 px-3 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 cursor-pointer select-none transition-colors touch-manipulation hover:border-brand-400 hover:bg-brand-50/60 dark:hover:border-brand-500 dark:hover:bg-brand-900/20 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 dark:has-[:checked]:border-brand-400 dark:has-[:checked]:bg-brand-900/30 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500';
 
 // Navegadores sem field-sizing (Firefox, Safari): ajusta a altura ao conteúdo
 const supportsFieldSizing = typeof CSS !== 'undefined' && CSS.supports?.('field-sizing', 'content');
@@ -342,7 +332,7 @@ export function ExtractionPanel({ criteria, values, onChange, onCommit, idPrefix
                 onChange={(e) => { onChange(index, e.target.value); fitHeight(e.target); }}
                 onBlur={onCommit}
                 placeholder={t('multiSelect.answerPlaceholder')}
-                className={`auto-grow block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 resize-none overflow-hidden break-words ${size}`}
+                className={`auto-grow block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 resize-none overflow-hidden break-words ${size}`}
               />
             )}
 
@@ -356,7 +346,7 @@ export function ExtractionPanel({ criteria, values, onChange, onCommit, idPrefix
                   return (
                     <label key={itemIndex} className={optionTile}>
                       <ChoiceMark many={many} checked={checked} name={`${idPrefix}-${index}`} value={item} onChange={() => onChange(index, item, many, true)} />
-                      <span className={`${checked ? 'text-indigo-700 dark:text-indigo-200 font-medium' : 'text-gray-900 dark:text-white'} ${(TEXT_SIZES[textSize] ?? TEXT_SIZES.normal).option}`}>{item}</span>
+                      <span className={`${checked ? 'text-brand-700 dark:text-brand-200 font-medium' : 'text-gray-900 dark:text-white'} ${(TEXT_SIZES[textSize] ?? TEXT_SIZES.normal).option}`}>{item}</span>
                     </label>
                   );
                 })}

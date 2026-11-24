@@ -16,7 +16,7 @@ import { evaluateOpenai, listOpenaiModels } from "../ai/openaiClient.js";
 const inputCls = `w-full px-3 py-2 text-sm rounded-lg border transition-colors
   bg-white dark:bg-gray-700 text-gray-800 dark:text-white
   placeholder-gray-400 dark:placeholder-gray-500 border-gray-300 dark:border-gray-600
-  focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500`;
+  focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500`;
 
 const labelCls = "text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5 block";
 const hintCls = "text-xs text-gray-500 dark:text-gray-400";
@@ -42,7 +42,7 @@ function ProviderPicker({ label, value, onChange, providers }) {
           return (
             <label key={id} translate="no"
               className={`relative flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer select-none transition-colors
-                has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-indigo-500
+                has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500
                 ${active
                   ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-white/60 hover:text-gray-900 dark:hover:bg-gray-700/50 dark:hover:text-gray-200'}`}>
@@ -75,7 +75,7 @@ function RangeField({ id, label, hint, min, max, step, value, onChange, onBlur, 
           step={step}
           value={numeric}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-1 min-w-0 h-2 cursor-pointer accent-indigo-600 dark:accent-indigo-400"
+          className="flex-1 min-w-0 h-2 cursor-pointer accent-brand-600 dark:accent-brand-400"
         />
         <div className="flex items-center gap-1 shrink-0">
           {/* prefixo e sufixo sempre ocupam espaço para os campos ficarem alinhados */}
@@ -280,7 +280,7 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onCl
                   href="https://platform.openai.com/api-keys"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                  className="flex items-center gap-1 text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline"
                 >
                   <Link size={12} aria-hidden="true" />
                   {t('assist.getKey')}
@@ -332,7 +332,7 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onCl
                   href="https://console.typesafe.ai/keys"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                  className="flex items-center gap-1 text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline"
                 >
                   <Link size={12} aria-hidden="true" />
                   {t('assist.getKey')}
@@ -387,7 +387,7 @@ export function JevSettingsModal({ settings, aiConfig, onSave, onSaveRules, onCl
                 type="checkbox"
                 checked={longContext}
                 onChange={(e) => setLongContext(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 accent-indigo-600 focus-visible:ring-indigo-500"
+                className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 accent-brand-600 focus-visible:ring-brand-500"
               />
               {t('assist.longContext')}
             </label>}

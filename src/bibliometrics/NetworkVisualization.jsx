@@ -383,7 +383,7 @@ const NetworkVisualization = forwardRef(({
       <canvas
         ref={canvasRef}
         className="w-full h-full rounded-lg"
-        style={{ background: theme === 'dark' ? '#111827' : '#ffffff' }}
+        style={{ background: theme === 'dark' ? '#16171a' : '#fcfbf8' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

@@ -6,7 +6,7 @@ import { BUTTON } from './buttons.js';
 
 const TONES = {
   danger: 'bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600',
-  primary: 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600',
+  primary: 'bg-brand-600 hover:bg-brand-700 dark:bg-brand-500 dark:hover:bg-brand-600',
   success: 'bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600',
 };
 
@@ -47,11 +47,11 @@ export const InlineConfirm = ({ message, confirmLabel, cancelLabel, tone = 'dang
 /** Diálogo modal de confirmação para fluxos sem cartão próprio (abrir arquivo, restaurar backup…). */
 export const ConfirmDialog = ({ request, onClose }) => {
   const { t } = useTranslation();
-  if (!request) return null;
-  const { title, message, confirmLabel, cancelLabel, tone = 'primary' } = request;
+  const { title, message, confirmLabel, cancelLabel, tone = 'primary' } = request ?? {};
 
   return (
     <Modal
+      open={!!request}
       size="sm"
       role="alertdialog"
       layer="top"

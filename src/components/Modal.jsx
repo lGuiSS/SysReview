@@ -1,11 +1,14 @@
 // Modal.jsx - Casca visual única dos modais (cabeçalho, corpo com rolagem e rodapé) sobre o DialogPanel
 
 import { useId } from 'react';
+import { AnimatePresence, motion as Motion, useReducedMotion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { DialogPanel } from './Dialog.jsx';
 import { ICON_BUTTON } from './buttons.js';
 import { ICON_TONES, LAYERS, MODAL_BACKDROP, MODAL_BODY, modalPanelClass } from './modalStyles.js';
+import { EASE_OUT, ENTER, QUICK } from './motion/transitions.js';
+import { TooltipButton, WarmTooltipGroup } from './motion/WarmTooltip.jsx';
 
 
 export function ModalHeader({ titleId, title, eyebrow, icon: Icon, iconTone = 'neutral', description, descriptionId, onClose, closeLabel, headerExtra }) {
@@ -24,9 +27,9 @@ export function ModalHeader({ titleId, title, eyebrow, icon: Icon, iconTone = 'n
         {description && <p id={descriptionId} className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{description}</p>}
       </div>
       {headerExtra}
-      <button type="button" onClick={onClose} aria-label={closeLabel ?? t('modals.close')} className={`${ICON_BUTTON} -mr-2 -mt-1`}>
+      <TooltipButton title={closeLabel ?? t('modals.close')} type="button" onClick={onClose} aria-label={closeLabel ?? t('modals.close')} className={`${ICON_BUTTON} -mr-2 -mt-1`}>
         <X className="h-5 w-5" aria-hidden="true" />
-      </button>
+      </TooltipButton>
     </div>
   );
 }
@@ -37,16 +40,23 @@ export const ModalFooter = ({ children }) => (
   </div>
 );
 
-export function Modal({
+export function Modal({ open = true, ...props }) {
+  return <AnimatePresence propagate>{open && <ModalContent {...props} />}</AnimatePresence>;
+}
+
+function ModalContent({
   size = 'sm', title, eyebrow, icon, iconTone = 'neutral', description, onClose, footer, children,
   role = 'dialog', layer = 'base', closeOnBackdrop = false, closeLabel, describedBy,
   fallbackFocus, bodyClassName = '', headerExtra, notice,
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const reduced = useReducedMotion();
 
   return (
-    <div className={`${MODAL_BACKDROP} ${LAYERS[layer] ?? LAYERS.base}`} onClick={closeOnBackdrop ? onClose : undefined}>
+    <WarmTooltipGroup><Motion.div className={`${MODAL_BACKDROP} ${LAYERS[layer] ?? LAYERS.base}`} onClick={closeOnBackdrop ? onClose : undefined}
+      initial={{ opacity: reduced ? 1 : 0 }} animate={{ opacity: 1, transition: { duration: reduced ? 0 : ENTER, ease: EASE_OUT } }}
+      exit={{ opacity: 0, transition: { duration: reduced ? 0 : QUICK } }}>
       <DialogPanel
         role={role}
         onClose={onClose}
@@ -71,7 +81,7 @@ export function Modal({
 
         {footer && <ModalFooter>{footer}</ModalFooter>}
       </DialogPanel>
-    </div>
+    </Motion.div></WarmTooltipGroup>
   );
 }
 
